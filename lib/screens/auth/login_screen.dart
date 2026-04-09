@@ -1,3 +1,4 @@
+import 'package:ecoruta/routes/app_routes.dart';
 import 'package:flutter/material.dart';
 
 class LoginScreen extends StatefulWidget {
@@ -33,10 +34,7 @@ class _LoginScreenState extends State<LoginScreen> {
         ),
         title: const Text(
           'Iniciar Sesión',
-          style: TextStyle(
-            fontWeight: FontWeight.w700,
-            color: primaryColor,
-          ),
+          style: TextStyle(fontWeight: FontWeight.w700, color: primaryColor),
         ),
         centerTitle: false,
       ),
@@ -72,10 +70,7 @@ class _LoginScreenState extends State<LoginScreen> {
 
               const Text(
                 'Ingresa tus credenciales para continuar tu aventura.',
-                style: TextStyle(
-                  fontSize: 14,
-                  color: softTextColor,
-                ),
+                style: TextStyle(fontSize: 14, color: softTextColor),
               ),
 
               const SizedBox(height: 32),
@@ -190,11 +185,7 @@ class _LoginScreenState extends State<LoginScreen> {
                     ),
                   ),
                   onPressed: () {
-                    ScaffoldMessenger.of(context).showSnackBar(
-                      const SnackBar(
-                        content: Text('Inicio de sesión de ejemplo'),
-                      ),
-                    );
+                    Navigator.pushReplacementNamed(context, AppRoutes.shell);
                   },
                   child: const Row(
                     mainAxisAlignment: MainAxisAlignment.center,
@@ -253,9 +244,7 @@ class _LoginScreenState extends State<LoginScreen> {
                       Container(
                         width: 22,
                         height: 22,
-                        decoration: const BoxDecoration(
-                          shape: BoxShape.circle,
-                        ),
+                        decoration: const BoxDecoration(shape: BoxShape.circle),
                         child: const Center(
                           child: Text(
                             'G',
@@ -289,10 +278,7 @@ class _LoginScreenState extends State<LoginScreen> {
                   children: [
                     const Text(
                       '¿No tienes una cuenta? ',
-                      style: TextStyle(
-                        fontSize: 14,
-                        color: softTextColor,
-                      ),
+                      style: TextStyle(fontSize: 14, color: softTextColor),
                     ),
                     GestureDetector(
                       onTap: () {
@@ -315,7 +301,7 @@ class _LoginScreenState extends State<LoginScreen> {
 
               const Center(
                 child: Text(
-                  '© 2024 EcoRuta Digital Cartography\n\nExplorando las rutas más espectaculares de Costa Rica.',
+                  '© 2026 EcoRuta Digital Cartography\n\nExplorando las rutas más espectaculares de Costa Rica.',
                   textAlign: TextAlign.center,
                   style: TextStyle(
                     fontSize: 10,
@@ -347,10 +333,7 @@ class _LoginScreenState extends State<LoginScreen> {
     );
   }
 
-  Widget _buildInputField({
-    required String hint,
-    required IconData icon,
-  }) {
+  Widget _buildInputField({required String hint, required IconData icon}) {
     return TextField(
       decoration: InputDecoration(
         hintText: hint,

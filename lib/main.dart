@@ -1,7 +1,5 @@
 import 'package:flutter/material.dart';
-import 'screens/home/home_screen.dart';
-import 'screens/auth/login_screen.dart';
-import 'screens/auth/register_screen.dart';
+import 'routes/app_routes.dart';
 
 void main() {
   runApp(const EcoRutaApp());
@@ -24,12 +22,8 @@ class EcoRutaApp extends StatelessWidget {
         ),
         fontFamily: 'Arial',
       ),
-      initialRoute: '/',
-      routes: {
-        '/': (context) => const HomeScreen(),
-        '/login': (context) => const LoginScreen(),
-        '/register': (context) => const RegisterScreen(),
-      },
+      initialRoute: AppRoutes.home,
+      routes: AppRoutes.routes,
     );
   }
 }

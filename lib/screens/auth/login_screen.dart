@@ -1,5 +1,10 @@
+import 'package:ecoruta/models/user_model.dart';
+import 'package:ecoruta/providers/user_provider.dart';
 import 'package:ecoruta/routes/app_routes.dart';
+import 'package:ecoruta/services/auth_service.dart';
+import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
+import 'package:provider/provider.dart';
 
 class LoginScreen extends StatefulWidget {
   const LoginScreen({super.key});
@@ -11,6 +16,81 @@ class LoginScreen extends StatefulWidget {
 class _LoginScreenState extends State<LoginScreen> {
   bool obscurePassword = true;
   bool rememberMe = false;
+  bool isLoading = false;
+
+  final TextEditingController emailController = TextEditingController();
+  final TextEditingController passwordController = TextEditingController();
+
+Future<void> loginUser() async {
+  final email = emailController.text.trim();
+  final password = passwordController.text.trim();
+
+  if (email.isEmpty || password.isEmpty) {
+    ScaffoldMessenger.of(context).showSnackBar(
+      const SnackBar(content: Text('Ingrese correo y contraseña')),
+    );
+    return;
+  }
+
+  setState(() {
+    isLoading = true;
+  });
+
+  try {
+    final userCredential = await AuthService().login(
+      email: email,
+      password: password,
+    );
+
+    final uid = userCredential.user!.uid;
+
+    final data = await AuthService().getUserData(uid);
+
+    if (data != null) {
+      final userModel = UserModel.fromMap(data);
+
+      if (!mounted) return;
+
+      Provider.of<UserProvider>(context, listen: false).setUser(userModel);
+    }
+
+    if (!mounted) return;
+
+    Navigator.pushReplacementNamed(context, AppRoutes.shell);
+  } on FirebaseAuthException catch (e) {
+    String mensaje = 'Error al iniciar sesión';
+
+    if (e.code == 'user-not-found') {
+      mensaje = 'No existe un usuario con ese correo';
+    } else if (e.code == 'wrong-password') {
+      mensaje = 'Contraseña incorrecta';
+    } else if (e.code == 'invalid-email') {
+      mensaje = 'Correo inválido';
+    } else if (e.code == 'invalid-credential') {
+      mensaje = 'Correo o contraseña incorrectos';
+    }
+
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(content: Text(mensaje)),
+    );
+  } catch (e) {
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(content: Text('Error inesperado: $e')),
+    );
+  } finally {
+    if (mounted) {
+      setState(() {
+        isLoading = false;
+      });
+    }
+  }
+}
+  @override
+  void dispose() {
+    emailController.dispose();
+    passwordController.dispose();
+    super.dispose();
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -75,16 +155,18 @@ class _LoginScreenState extends State<LoginScreen> {
 
               const SizedBox(height: 32),
 
-              _buildLabel('Nombre de usuario'),
+              _buildLabel('Correo electrónico'),
               _buildInputField(
-                hint: 'nombre_aventurero',
-                icon: Icons.person_outline,
+                controller: emailController,
+                hint: 'usuario@correo.com',
+                icon: Icons.email_outlined,
               ),
 
               const SizedBox(height: 18),
 
               _buildLabel('Contraseña'),
               TextField(
+                controller: passwordController,
                 obscureText: obscurePassword,
                 decoration: InputDecoration(
                   hintText: '••••••••',
@@ -184,30 +266,37 @@ class _LoginScreenState extends State<LoginScreen> {
                       borderRadius: BorderRadius.circular(18),
                     ),
                   ),
-                  onPressed: () {
-                    Navigator.pushReplacementNamed(context, AppRoutes.shell);
-                  },
-                  child: const Row(
-                    mainAxisAlignment: MainAxisAlignment.center,
-                    children: [
-                      Text(
-                        'Entrar',
-                        style: TextStyle(
-                          fontSize: 16,
-                          fontWeight: FontWeight.w800,
+                  onPressed: isLoading ? null : loginUser,
+                  child: isLoading
+                      ? const SizedBox(
+                          width: 24,
+                          height: 24,
+                          child: CircularProgressIndicator(
+                            color: Colors.white,
+                            strokeWidth: 3,
+                          ),
+                        )
+                      : const Row(
+                          mainAxisAlignment: MainAxisAlignment.center,
+                          children: [
+                            Text(
+                              'Entrar',
+                              style: TextStyle(
+                                fontSize: 16,
+                                fontWeight: FontWeight.w800,
+                              ),
+                            ),
+                            SizedBox(width: 8),
+                            Icon(Icons.arrow_forward),
+                          ],
                         ),
-                      ),
-                      SizedBox(width: 8),
-                      Icon(Icons.arrow_forward),
-                    ],
-                  ),
                 ),
               ),
 
               const SizedBox(height: 28),
 
-              Row(
-                children: const [
+              const Row(
+                children: [
                   Expanded(child: Divider()),
                   Padding(
                     padding: EdgeInsets.symmetric(horizontal: 12),
@@ -333,8 +422,14 @@ class _LoginScreenState extends State<LoginScreen> {
     );
   }
 
-  Widget _buildInputField({required String hint, required IconData icon}) {
+  Widget _buildInputField({
+    required TextEditingController controller,
+    required String hint,
+    required IconData icon,
+  }) {
     return TextField(
+      controller: controller,
+      keyboardType: TextInputType.emailAddress,
       decoration: InputDecoration(
         hintText: hint,
         hintStyle: const TextStyle(color: Colors.black38),

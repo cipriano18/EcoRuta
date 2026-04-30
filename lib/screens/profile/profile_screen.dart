@@ -1,8 +1,17 @@
+import 'package:ecoruta/providers/user_provider.dart';
+import 'package:ecoruta/routes/app_routes.dart';
+import 'package:ecoruta/services/auth_service.dart';
 import 'package:flutter/material.dart';
+import 'package:provider/provider.dart';
 
-class ProfileScreen extends StatelessWidget {
+class ProfileScreen extends StatefulWidget {
   const ProfileScreen({super.key});
 
+  @override
+  State<ProfileScreen> createState() => _ProfileScreenState();
+}
+
+class _ProfileScreenState extends State<ProfileScreen> {
   static const primary = Color(0xFF012D1D);
   static const primaryContainer = Color(0xFF1B4332);
   static const surface = Color(0xFFF8F9FA);
@@ -11,17 +20,72 @@ class ProfileScreen extends StatelessWidget {
   static const secondary = Color(0xFF2C694E);
   static const error = Color(0xFFBA1A1A);
 
+  static const List<String> avatars = [
+    '👨',
+    '👩',
+    '🧑',
+    '👨‍🦱',
+    '👩‍🦰',
+  ];
+
+  bool isLoadingProfile = true;
+
+  @override
+  void initState() {
+    super.initState();
+    loadProfile();
+  }
+
+  Future<void> loadProfile() async {
+    final provider = Provider.of<UserProvider>(context, listen: false);
+
+    if (provider.user != null) {
+      setState(() {
+        isLoadingProfile = false;
+      });
+      return;
+    }
+
+    final userProfile = await AuthService().getCurrentUserProfile();
+
+    if (userProfile != null) {
+      provider.setUser(userProfile);
+    }
+
+    if (mounted) {
+      setState(() {
+        isLoadingProfile = false;
+      });
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
+    final user = Provider.of<UserProvider>(context).user;
+
+    final fullName = user?.fullName ?? 'Usuario';
+    final avatarId = user?.avatarId ?? 0;
+    final safeAvatarId = avatarId >= 0 && avatarId < avatars.length ? avatarId : 0;
+    final avatar = avatars[safeAvatarId];
+
+    if (isLoadingProfile) {
+      return const Scaffold(
+        backgroundColor: surface,
+        body: Center(
+          child: CircularProgressIndicator(),
+        ),
+      );
+    }
+
     return Scaffold(
       backgroundColor: surface,
       body: SafeArea(
         child: ListView(
           padding: const EdgeInsets.fromLTRB(24, 20, 24, 120),
           children: [
-            _topBar(),
+            _topBar(avatar),
             const SizedBox(height: 32),
-            _profileHeader(),
+            _profileHeader(fullName, avatar),
             const SizedBox(height: 36),
             _statsGrid(),
             const SizedBox(height: 34),
@@ -29,14 +93,14 @@ class ProfileScreen extends StatelessWidget {
             const SizedBox(height: 34),
             _settingsButton(),
             const SizedBox(height: 14),
-            _logoutButton(),
+            _logoutButton(context),
           ],
         ),
       ),
     );
   }
 
-  Widget _topBar() {
+  Widget _topBar(String avatar) {
     return Row(
       mainAxisAlignment: MainAxisAlignment.spaceBetween,
       children: [
@@ -61,13 +125,18 @@ class ProfileScreen extends StatelessWidget {
             color: surfaceContainer,
             borderRadius: BorderRadius.circular(50),
           ),
-          child: const Icon(Icons.person, color: primary),
+          child: Center(
+            child: Text(
+              avatar,
+              style: const TextStyle(fontSize: 22),
+            ),
+          ),
         ),
       ],
     );
   }
 
-  Widget _profileHeader() {
+  Widget _profileHeader(String fullName, String avatar) {
     return Column(
       children: [
         Stack(
@@ -87,10 +156,11 @@ class ProfileScreen extends StatelessWidget {
                   ),
                 ],
               ),
-              child: const Icon(
-                Icons.person,
-                size: 72,
-                color: primary,
+              child: Center(
+                child: Text(
+                  avatar,
+                  style: const TextStyle(fontSize: 72),
+                ),
               ),
             ),
             Positioned(
@@ -102,7 +172,7 @@ class ProfileScreen extends StatelessWidget {
                 decoration: BoxDecoration(
                   color: Colors.white,
                   shape: BoxShape.circle,
-                  border: Border.all(color: Color(0xFFC1C8C2)),
+                  border: Border.all(color: const Color(0xFFC1C8C2)),
                   boxShadow: [
                     BoxShadow(
                       color: Colors.black.withOpacity(0.12),
@@ -116,9 +186,10 @@ class ProfileScreen extends StatelessWidget {
           ],
         ),
         const SizedBox(height: 24),
-        const Text(
-          'Mateo Rodriguez',
-          style: TextStyle(
+        Text(
+          fullName,
+          textAlign: TextAlign.center,
+          style: const TextStyle(
             fontSize: 30,
             fontWeight: FontWeight.w900,
             color: primary,
@@ -356,9 +427,17 @@ class ProfileScreen extends StatelessWidget {
     );
   }
 
-  Widget _logoutButton() {
+  Widget _logoutButton(BuildContext context) {
     return TextButton(
-      onPressed: () {},
+      onPressed: () async {
+        await AuthService().logout();
+
+        if (!context.mounted) return;
+
+        Provider.of<UserProvider>(context, listen: false).clear();
+
+        Navigator.pushReplacementNamed(context, AppRoutes.login);
+      },
       child: const Text(
         'Cerrar sesión',
         style: TextStyle(

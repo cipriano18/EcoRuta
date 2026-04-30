@@ -1,8 +1,26 @@
+import 'package:ecoruta/firebase_options.dart';
+import 'package:ecoruta/providers/user_provider.dart';
+import 'package:firebase_core/firebase_core.dart';
 import 'package:flutter/material.dart';
+import 'package:provider/provider.dart';
+
 import 'routes/app_routes.dart';
 
-void main() {
-  runApp(const EcoRutaApp());
+Future<void> main() async {
+  WidgetsFlutterBinding.ensureInitialized();
+
+  await Firebase.initializeApp(
+    options: DefaultFirebaseOptions.currentPlatform,
+  );
+
+  runApp(
+    MultiProvider(
+      providers: [
+        ChangeNotifierProvider(create: (_) => UserProvider()),
+      ],
+      child: const EcoRutaApp(),
+    ),
+  );
 }
 
 class EcoRutaApp extends StatelessWidget {

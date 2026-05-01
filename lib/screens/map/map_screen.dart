@@ -3,6 +3,8 @@ import 'dart:convert';
 import 'dart:io';
 import 'dart:math' as math;
 
+import 'package:ecoruta/providers/user_provider.dart';
+import 'package:ecoruta/services/auth_service.dart';
 import 'package:ecoruta/widgets/app_header.dart';
 import 'package:ecoruta/widgets/scr_map/active_route_card.dart';
 import 'package:flutter/material.dart';
@@ -10,6 +12,7 @@ import 'package:flutter_compass/flutter_compass.dart';
 import 'package:flutter_map/flutter_map.dart';
 import 'package:geolocator/geolocator.dart';
 import 'package:latlong2/latlong.dart';
+import 'package:provider/provider.dart';
 
 class MapScreen extends StatefulWidget {
   const MapScreen({super.key});
@@ -370,6 +373,26 @@ class _MapScreenState extends State<MapScreen> {
                 onCancel: () {
                   if (!mounted) return;
                   setState(() => _isRouteActive = false);
+                },
+                onFinish: () async {
+                  try {
+                    final refreshedUser =
+                        await AuthService().registerWeeklyRouteCompletion();
+                    if (!mounted) return;
+
+                    if (refreshedUser != null) {
+                      Provider.of<UserProvider>(
+                        context,
+                        listen: false,
+                      ).setUser(refreshedUser);
+                    }
+                  } catch (_) {
+                    // Evita romper la UI si falla la actualizacion remota.
+                  } finally {
+                    if (mounted) {
+                      setState(() => _isRouteActive = false);
+                    }
+                  }
                 },
               ),
             ),

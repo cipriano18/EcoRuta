@@ -51,6 +51,8 @@ class AuthService {
       'favoriteActivity': favoriteActivity.trim(),
       'completed_routes': 0,
       'km_counter': 0,
+      'streak_started_at': null,
+      'streak_deadline_at': null,
       'createdAt': FieldValue.serverTimestamp(),
     });
 
@@ -74,7 +76,12 @@ class AuthService {
 
     if (!doc.exists || doc.data() == null) return null;
 
-    return UserModel.fromMap(doc.data()!);
+    final data = Map<String, dynamic>.from(doc.data()!);
+    final syncedData = await _resetExpiredStreakIfNeeded(
+      uid: user.uid,
+      data: data,
+    );
+    return UserModel.fromMap(syncedData);
   }
 
   Future<void> updateAvatar(int avatarId) async {
@@ -135,7 +142,51 @@ class AuthService {
     await user.updatePassword(newPassword.trim());
   }
 
-  Future<void> deleteCurrentAccount() async {
+  Future<void> deleteCurrentAccount({
+    required String currentPassword,
+  }) async {
+    final user = _auth.currentUser;
+
+    if (user == null || user.email == null) {
+      throw FirebaseAuthException(
+        code: 'user-null',
+        message: 'No hay un usuario autenticado',
+      );
+    }
+
+    final uid = user.uid;
+    final normalizedPassword = currentPassword.trim();
+
+    if (normalizedPassword.isEmpty) {
+      throw FirebaseAuthException(
+        code: 'missing-password',
+        message: 'Debes confirmar tu contrasena actual',
+      );
+    }
+
+    final credential = EmailAuthProvider.credential(
+      email: user.email!,
+      password: normalizedPassword,
+    );
+    await user.reauthenticateWithCredential(credential);
+
+    final userDocRef = _firestore.collection('users').doc(uid);
+    final userDocSnapshot = await userDocRef.get();
+    final backupData = userDocSnapshot.data();
+
+    await userDocRef.delete();
+
+    try {
+      await user.delete();
+    } catch (e) {
+      if (backupData != null) {
+        await userDocRef.set(backupData);
+      }
+      rethrow;
+    }
+  }
+
+  Future<UserModel?> registerWeeklyRouteCompletion() async {
     final user = _auth.currentUser;
 
     if (user == null) {
@@ -145,10 +196,52 @@ class AuthService {
       );
     }
 
-    final uid = user.uid;
+    final userDoc = _firestore.collection('users').doc(user.uid);
+    final snapshot = await userDoc.get();
+    final data = Map<String, dynamic>.from(snapshot.data() ?? {});
+    final now = DateTime.now();
 
-    await user.delete();
-    await _firestore.collection('users').doc(uid).delete();
+    final startedAt = _readDate(data['streak_started_at']);
+    final deadlineAt = _readDate(data['streak_deadline_at']);
+    final hasActiveStreak = deadlineAt != null && !deadlineAt.isBefore(now);
+    final nextDeadline = now.add(const Duration(days: 7));
+
+    await userDoc.set({
+      'streak_started_at': hasActiveStreak ? startedAt ?? now : now,
+      'streak_deadline_at': nextDeadline,
+    }, SetOptions(merge: true));
+
+    final refreshed = await userDoc.get();
+    if (!refreshed.exists || refreshed.data() == null) return null;
+    return UserModel.fromMap(refreshed.data()!);
+  }
+
+  Future<Map<String, dynamic>> _resetExpiredStreakIfNeeded({
+    required String uid,
+    required Map<String, dynamic> data,
+  }) async {
+    final deadlineAt = _readDate(data['streak_deadline_at']);
+    if (deadlineAt == null || !deadlineAt.isBefore(DateTime.now())) {
+      return data;
+    }
+
+    await _firestore.collection('users').doc(uid).set({
+      'streak_started_at': null,
+      'streak_deadline_at': null,
+    }, SetOptions(merge: true));
+
+    final normalized = Map<String, dynamic>.from(data);
+    normalized['streak_started_at'] = null;
+    normalized['streak_deadline_at'] = null;
+    return normalized;
+  }
+
+  DateTime? _readDate(dynamic value) {
+    if (value == null) return null;
+    if (value is Timestamp) return value.toDate();
+    if (value is DateTime) return value;
+    if (value is String) return DateTime.tryParse(value);
+    return null;
   }
 
   // LOGOUT

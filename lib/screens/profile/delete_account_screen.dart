@@ -1,6 +1,7 @@
 import 'package:ecoruta/providers/user_provider.dart';
 import 'package:ecoruta/routes/app_routes.dart';
 import 'package:ecoruta/services/auth_service.dart';
+import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
@@ -16,28 +17,65 @@ class _DeleteAccountScreenState extends State<DeleteAccountScreen> {
   static const _danger = Color(0xFFBA1A1A);
   static const _surface = Color(0xFFF8F9FA);
 
+  final _passwordController = TextEditingController();
+
   bool _isDeleting = false;
+  bool _obscurePassword = true;
+
+  @override
+  void dispose() {
+    _passwordController.dispose();
+    super.dispose();
+  }
 
   Future<void> _deleteAccount() async {
+    final currentPassword = _passwordController.text.trim();
+    if (currentPassword.isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text(
+            'Confirma tu contraseña actual para eliminar la cuenta',
+          ),
+        ),
+      );
+      return;
+    }
+
     setState(() {
       _isDeleting = true;
     });
 
     try {
-      await AuthService().deleteCurrentAccount();
+      await AuthService().deleteCurrentAccount(
+        currentPassword: currentPassword,
+      );
 
       if (!mounted) return;
 
       Provider.of<UserProvider>(context, listen: false).clear();
-      Navigator.pushNamedAndRemoveUntil(context, AppRoutes.login, (_) => false);
+      Navigator.pushNamedAndRemoveUntil(context, AppRoutes.home, (_) => false);
+    } on FirebaseAuthException catch (e) {
+      if (!mounted) return;
+
+      String message = 'No se pudo eliminar la cuenta.';
+      if (e.code == 'wrong-password' ||
+          e.code == 'invalid-credential' ||
+          e.code == 'invalid-login-credentials') {
+        message = 'La contrasena actual no es correcta.';
+      } else if (e.code == 'requires-recent-login') {
+        message =
+            'Por seguridad, debes volver a iniciar sesion antes de eliminar tu cuenta.';
+      } else if (e.code == 'missing-password') {
+        message = 'Debes confirmar tu contraseña actual.';
+      }
+
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text(message)));
     } catch (e) {
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text(
-            'No se pudo eliminar la cuenta. Si es necesario, vuelve a iniciar sesion e intenta de nuevo. $e',
-          ),
-        ),
+        SnackBar(content: Text('No se pudo eliminar la cuenta: $e')),
       );
     } finally {
       if (mounted) {
@@ -50,6 +88,8 @@ class _DeleteAccountScreenState extends State<DeleteAccountScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final hasPassword = _passwordController.text.trim().isNotEmpty;
+
     return Scaffold(
       backgroundColor: _surface,
       appBar: AppBar(
@@ -63,7 +103,7 @@ class _DeleteAccountScreenState extends State<DeleteAccountScreen> {
         ),
       ),
       body: SafeArea(
-        child: Padding(
+        child: SingleChildScrollView(
           padding: const EdgeInsets.fromLTRB(24, 12, 24, 24),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
@@ -99,39 +139,54 @@ class _DeleteAccountScreenState extends State<DeleteAccountScreen> {
                   color: Colors.black54,
                 ),
               ),
-              const SizedBox(height: 28),
-              Container(
-                padding: const EdgeInsets.all(18),
-                decoration: BoxDecoration(
-                  color: Colors.white,
-                  borderRadius: BorderRadius.circular(22),
-                ),
-                child: const Row(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Icon(Icons.info_outline_rounded, color: _primary, size: 20),
-                    SizedBox(width: 10),
-                    Expanded(
-                      child: Text(
-                        'Te recomendamos usar esta opcion solo si estas completamente seguro. Si tu sesion no es reciente, Firebase podria pedirte volver a iniciar sesion antes de completar la eliminacion.',
-                        style: TextStyle(
-                          fontSize: 13,
-                          height: 1.4,
-                          color: Colors.black54,
-                        ),
-                      ),
-                    ),
-                  ],
+              const SizedBox(height: 20),
+              const Text(
+                'Confirma tu contraseña actual para continuar.',
+                style: TextStyle(
+                  fontSize: 13,
+                  fontWeight: FontWeight.w700,
+                  color: Colors.black54,
                 ),
               ),
-              const Spacer(),
+              const SizedBox(height: 12),
+              TextField(
+                controller: _passwordController,
+                obscureText: _obscurePassword,
+                onChanged: (_) => setState(() {}),
+                decoration: InputDecoration(
+                  hintText: 'Contraseña actual',
+                  prefixIcon: const Icon(Icons.lock_outline),
+                  suffixIcon: IconButton(
+                    onPressed: () {
+                      setState(() {
+                        _obscurePassword = !_obscurePassword;
+                      });
+                    },
+                    icon: Icon(
+                      _obscurePassword
+                          ? Icons.visibility_outlined
+                          : Icons.visibility_off_outlined,
+                    ),
+                  ),
+                  filled: true,
+                  fillColor: const Color(0xFFEDEEEF),
+                  border: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(18),
+                    borderSide: BorderSide.none,
+                  ),
+                ),
+              ),
+              const SizedBox(height: 28),
               SizedBox(
                 width: double.infinity,
                 height: 54,
                 child: ElevatedButton(
-                  onPressed: _isDeleting ? null : _deleteAccount,
+                  onPressed: _isDeleting || !hasPassword
+                      ? null
+                      : _deleteAccount,
                   style: ElevatedButton.styleFrom(
                     backgroundColor: _danger,
+                    disabledBackgroundColor: _danger.withOpacity(0.35),
                     shape: RoundedRectangleBorder(
                       borderRadius: BorderRadius.circular(18),
                     ),

@@ -1,4 +1,7 @@
 import 'package:flutter/material.dart';
+import 'package:provider/provider.dart';
+import '../providers/user_provider.dart';
+import '../services/auth_service.dart';
 import '../screens/map/map_screen.dart';
 import '../screens/explore/explore_screen.dart';
 import '../screens/my_routes/my_routes_screen.dart';
@@ -30,6 +33,19 @@ class _MainShellState extends State<MainShell> {
     MyRoutesScreen(),
     ProfileScreen(),
   ];
+
+  @override
+  void initState() {
+    super.initState();
+    _syncCurrentUserProfile();
+  }
+
+  Future<void> _syncCurrentUserProfile() async {
+    final userProfile = await AuthService().getCurrentUserProfile();
+    if (!mounted || userProfile == null) return;
+
+    Provider.of<UserProvider>(context, listen: false).setUser(userProfile);
+  }
 
   void _goToTab(int index) {
     if (_currentIndex == index) return;

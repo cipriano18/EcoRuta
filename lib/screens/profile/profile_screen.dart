@@ -4,6 +4,7 @@ import 'package:ecoruta/screens/profile/avatar_picker_screen.dart';
 import 'package:ecoruta/screens/profile/change_password_screen.dart';
 import 'package:ecoruta/screens/profile/delete_account_screen.dart';
 import 'package:ecoruta/screens/profile/edit_account_screen.dart';
+import 'package:ecoruta/screens/profile/user_rank_screen.dart';
 import 'package:ecoruta/services/auth_service.dart';
 import 'package:ecoruta/widgets/avatar_image.dart';
 import 'package:flutter/material.dart';
@@ -43,14 +44,6 @@ class _ProfileScreenState extends State<ProfileScreen> {
 
   Future<void> loadProfile() async {
     final provider = Provider.of<UserProvider>(context, listen: false);
-
-    if (provider.user != null) {
-      setState(() {
-        isLoadingProfile = false;
-      });
-      return;
-    }
-
     final userProfile = await AuthService().getCurrentUserProfile();
 
     if (userProfile != null) {
@@ -73,6 +66,8 @@ class _ProfileScreenState extends State<ProfileScreen> {
         : 'Ninguna';
     final completedRoutes = user?.completedRoutes ?? 0;
     final totalKilometers = user?.kmCounter ?? 0;
+    final streakWeeks = user?.streakWeeks ?? 0;
+    final currentRank = getUserRank(totalKilometers);
     final avatarId = user?.avatarId ?? 0;
     final safeAvatarId = avatarId >= 0 && avatarId < AvatarImage.avatarCount
         ? avatarId
@@ -91,7 +86,13 @@ class _ProfileScreenState extends State<ProfileScreen> {
         child: ListView(
           padding: const EdgeInsets.fromLTRB(24, 20, 24, 120),
           children: [
-            _profileHeader(fullName, safeAvatarId),
+            _profileHeader(
+              fullName: fullName,
+              avatarId: safeAvatarId,
+              currentRankTitle: currentRank.title,
+              totalKilometers: totalKilometers,
+              streakWeeks: streakWeeks,
+            ),
             const SizedBox(height: 36),
             _statsGrid(
               favoriteActivity: favoriteActivity,
@@ -112,7 +113,13 @@ class _ProfileScreenState extends State<ProfileScreen> {
     );
   }
 
-  Widget _profileHeader(String fullName, int avatarId) {
+  Widget _profileHeader({
+    required String fullName,
+    required int avatarId,
+    required String currentRankTitle,
+    required num totalKilometers,
+    required int streakWeeks,
+  }) {
     return Column(
       children: [
         Stack(
@@ -183,16 +190,66 @@ class _ProfileScreenState extends State<ProfileScreen> {
           ),
         ),
         const SizedBox(height: 8),
-        const Text(
-          'Nivel intermedio',
-          textAlign: TextAlign.center,
-          style: TextStyle(
-            fontSize: 13,
-            fontWeight: FontWeight.w700,
-            color: secondary,
-          ),
+        Wrap(
+          alignment: WrapAlignment.center,
+          spacing: 8,
+          runSpacing: 8,
+          children: [
+            GestureDetector(
+              onTap: () {
+                Navigator.of(context).push(
+                  MaterialPageRoute(
+                    builder: (_) => UserRankScreen(kmCounter: totalKilometers),
+                  ),
+                );
+              },
+              child: _profileBadge(
+                icon: Icons.military_tech_rounded,
+                label: currentRankTitle,
+              ),
+            ),
+            _profileBadge(
+              icon: Icons.local_fire_department_rounded,
+              label: streakWeeks == 1 ? '1 semana' : '$streakWeeks semanas',
+              iconColor: _streakPalette(streakWeeks).iconColor,
+              textColor: _streakPalette(streakWeeks).textColor,
+              backgroundColor: _streakPalette(streakWeeks).backgroundColor,
+            ),
+          ],
         ),
       ],
+    );
+  }
+
+  Widget _profileBadge({
+    required IconData icon,
+    required String label,
+    Color iconColor = secondary,
+    Color textColor = secondary,
+    Color backgroundColor = surfaceLow,
+  }) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 9),
+      decoration: BoxDecoration(
+        color: backgroundColor,
+        borderRadius: BorderRadius.circular(999),
+      ),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Icon(icon, size: 16, color: iconColor),
+          const SizedBox(width: 6),
+          Text(
+            label,
+            textAlign: TextAlign.center,
+            style: TextStyle(
+              fontSize: 13,
+              fontWeight: FontWeight.w800,
+              color: textColor,
+            ),
+          ),
+        ],
+      ),
     );
   }
 
@@ -347,6 +404,35 @@ class _ProfileScreenState extends State<ProfileScreen> {
     return value.toStringAsFixed(1);
   }
 
+  _StreakPalette _streakPalette(int streakWeeks) {
+    if (streakWeeks > 50) {
+      return const _StreakPalette(
+        backgroundColor: Color(0xFFD7F5F2),
+        iconColor: Color(0xFF0F8A83),
+        textColor: Color(0xFF0B6F69),
+      );
+    }
+    if (streakWeeks > 20) {
+      return const _StreakPalette(
+        backgroundColor: Color(0xFFFFE2D1),
+        iconColor: Color(0xFFCC5A17),
+        textColor: Color(0xFF9D3D00),
+      );
+    }
+    if (streakWeeks > 0) {
+      return const _StreakPalette(
+        backgroundColor: Color(0xFFFFF2C7),
+        iconColor: Color(0xFFC28A00),
+        textColor: Color(0xFF8C6500),
+      );
+    }
+    return const _StreakPalette(
+      backgroundColor: surfaceLow,
+      iconColor: Colors.grey,
+      textColor: Colors.grey,
+    );
+  }
+
   Widget _settingsButton() {
     return _profileActionTile(
       icon: Icons.settings,
@@ -433,4 +519,16 @@ class _ProfileScreenState extends State<ProfileScreen> {
       ),
     );
   }
+}
+
+class _StreakPalette {
+  const _StreakPalette({
+    required this.backgroundColor,
+    required this.iconColor,
+    required this.textColor,
+  });
+
+  final Color backgroundColor;
+  final Color iconColor;
+  final Color textColor;
 }

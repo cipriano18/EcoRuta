@@ -1,3 +1,4 @@
+import 'package:ecoruta/widgets/app_header.dart';
 import 'package:flutter/material.dart';
 import 'tabs/search_tab.dart';
 import 'tabs/generate_tab.dart';
@@ -14,7 +15,6 @@ class _ExploreScreenState extends State<ExploreScreen>
   late TabController _tabController;
 
   static const _primaryColor = Color(0xFF012D1D);
-  static const _primaryFixed = Color(0xFFC1ECD4);
   static const _surfaceHigh = Color(0xFFE7E8E9);
 
   @override
@@ -33,44 +33,8 @@ class _ExploreScreenState extends State<ExploreScreen>
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: const Color(0xFFF8F9FA),
-      appBar: AppBar(
+      appBar: AppHeader(
         backgroundColor: const Color(0xFFF8F9FA),
-        elevation: 0,
-        scrolledUnderElevation: 0,
-        leading: IconButton(
-          icon: const Icon(Icons.menu_rounded, color: _primaryColor),
-          onPressed: () {},
-        ),
-        title: const Text(
-          'TrailAI',
-          style: TextStyle(
-            fontSize: 22,
-            fontWeight: FontWeight.w800,
-            color: _primaryColor,
-            letterSpacing: -0.5,
-          ),
-        ),
-        actions: [
-          IconButton(
-            icon: const Icon(Icons.notifications_outlined, color: Colors.grey),
-            onPressed: () {},
-          ),
-          Padding(
-            padding: const EdgeInsets.only(right: 16),
-            child: CircleAvatar(
-              radius: 16,
-              backgroundColor: _primaryFixed,
-              child: const Text(
-                'SJ',
-                style: TextStyle(
-                  fontSize: 11,
-                  fontWeight: FontWeight.w800,
-                  color: _primaryColor,
-                ),
-              ),
-            ),
-          ),
-        ],
         bottom: PreferredSize(
           preferredSize: const Size.fromHeight(60),
           child: Padding(

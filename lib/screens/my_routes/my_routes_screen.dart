@@ -1,8 +1,14 @@
+import 'package:ecoruta/widgets/app_header.dart';
 import 'package:flutter/material.dart';
 
-class MyRoutesScreen extends StatelessWidget {
+class MyRoutesScreen extends StatefulWidget {
   const MyRoutesScreen({super.key});
 
+  @override
+  State<MyRoutesScreen> createState() => _MyRoutesScreenState();
+}
+
+class _MyRoutesScreenState extends State<MyRoutesScreen> {
   static const primaryColor = Color(0xFF012D1D);
   static const surfaceColor = Color(0xFFF8F9FA);
   static const surfaceLow = Color(0xFFF3F4F5);
@@ -12,6 +18,7 @@ class MyRoutesScreen extends StatelessWidget {
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: surfaceColor,
+      appBar: const AppHeader(backgroundColor: surfaceColor),
       body: SafeArea(
         child: Stack(
           children: [
@@ -56,8 +63,10 @@ class MyRoutesScreen extends StatelessWidget {
               child: ElevatedButton.icon(
                 style: ElevatedButton.styleFrom(
                   backgroundColor: primaryColor,
-                  padding:
-                      const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 16,
+                    vertical: 14,
+                  ),
                   shape: RoundedRectangleBorder(
                     borderRadius: BorderRadius.circular(18),
                   ),
@@ -66,7 +75,7 @@ class MyRoutesScreen extends StatelessWidget {
                 icon: const Icon(Icons.add_location_alt),
                 label: const Text("Crear mi ruta"),
               ),
-            )
+            ),
           ],
         ),
       ),
@@ -120,16 +129,40 @@ class MyRoutesScreen extends StatelessWidget {
 
   /// 🟢 FILTROS
   Widget _buildFilters() {
-    return SingleChildScrollView(
-      scrollDirection: Axis.horizontal,
-      child: Row(
-        children: [
-          _filterChip("Todas", selected: true),
-          _filterChip("Senderismo"),
-          _filterChip("Ciclismo"),
-          _filterChip("Trail Running"),
-        ],
-      ),
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        SingleChildScrollView(
+          scrollDirection: Axis.horizontal,
+          child: Row(
+            children: [
+              _filterChip("Todas", selected: true),
+              _filterChip("Senderismo"),
+              _filterChip("Ciclismo"),
+              _filterChip("Running"),
+            ],
+          ),
+        ),
+        const SizedBox(height: 4),
+        const Align(
+          alignment: Alignment.centerRight,
+          child: Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Text(
+                'Desliza para ver más',
+                style: TextStyle(
+                  fontSize: 11,
+                  fontWeight: FontWeight.w700,
+                  color: Colors.grey,
+                ),
+              ),
+              SizedBox(width: 6),
+              Icon(Icons.arrow_forward_rounded, size: 14, color: Colors.grey),
+            ],
+          ),
+        ),
+      ],
     );
   }
 
@@ -169,10 +202,7 @@ class MyRoutesScreen extends StatelessWidget {
         color: Colors.white,
         borderRadius: BorderRadius.circular(22),
         boxShadow: [
-          BoxShadow(
-            color: Colors.black.withOpacity(0.05),
-            blurRadius: 10,
-          ),
+          BoxShadow(color: Colors.black.withOpacity(0.05), blurRadius: 10),
         ],
       ),
       child: Row(
@@ -214,7 +244,7 @@ class MyRoutesScreen extends StatelessWidget {
                         SizedBox(width: 8),
                         Icon(Icons.delete, size: 18),
                       ],
-                    )
+                    ),
                   ],
                 ),
 
@@ -245,7 +275,7 @@ class MyRoutesScreen extends StatelessWidget {
                     _metric("Elevación", elevation),
                     _metric("Tiempo", time),
                   ],
-                )
+                ),
               ],
             ),
           ),
@@ -277,3 +307,6 @@ class MyRoutesScreen extends StatelessWidget {
     );
   }
 }
+
+// Componente: MyRoutesScreen.
+// Uso actual: pantalla principal de "Mis rutas" en lib/screens/my_routes/my_routes_screen.dart.

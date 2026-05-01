@@ -1,6 +1,11 @@
 import 'package:ecoruta/providers/user_provider.dart';
 import 'package:ecoruta/routes/app_routes.dart';
+import 'package:ecoruta/screens/profile/avatar_picker_screen.dart';
+import 'package:ecoruta/screens/profile/change_password_screen.dart';
+import 'package:ecoruta/screens/profile/delete_account_screen.dart';
+import 'package:ecoruta/screens/profile/edit_account_screen.dart';
 import 'package:ecoruta/services/auth_service.dart';
+import 'package:ecoruta/widgets/avatar_image.dart';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
@@ -20,20 +25,20 @@ class _ProfileScreenState extends State<ProfileScreen> {
   static const secondary = Color(0xFF2C694E);
   static const error = Color(0xFFBA1A1A);
 
-  static const List<String> avatars = [
-    '👨',
-    '👩',
-    '🧑',
-    '👨‍🦱',
-    '👩‍🦰',
-  ];
-
   bool isLoadingProfile = true;
 
   @override
   void initState() {
     super.initState();
     loadProfile();
+  }
+
+  Future<void> _openAvatarPicker(int avatarId) async {
+    await Navigator.of(context).push(
+      MaterialPageRoute(
+        builder: (_) => AvatarPickerScreen(initialAvatarId: avatarId),
+      ),
+    );
   }
 
   Future<void> loadProfile() async {
@@ -62,18 +67,21 @@ class _ProfileScreenState extends State<ProfileScreen> {
   @override
   Widget build(BuildContext context) {
     final user = Provider.of<UserProvider>(context).user;
-
     final fullName = user?.fullName ?? 'Usuario';
+    final favoriteActivity = user?.favoriteActivity?.trim().isNotEmpty == true
+        ? user!.favoriteActivity!
+        : 'Ninguna';
+    final completedRoutes = user?.completedRoutes ?? 0;
+    final totalKilometers = user?.kmCounter ?? 0;
     final avatarId = user?.avatarId ?? 0;
-    final safeAvatarId = avatarId >= 0 && avatarId < avatars.length ? avatarId : 0;
-    final avatar = avatars[safeAvatarId];
+    final safeAvatarId = avatarId >= 0 && avatarId < AvatarImage.avatarCount
+        ? avatarId
+        : 0;
 
     if (isLoadingProfile) {
       return const Scaffold(
         backgroundColor: surface,
-        body: Center(
-          child: CircularProgressIndicator(),
-        ),
+        body: Center(child: CircularProgressIndicator()),
       );
     }
 
@@ -83,15 +91,19 @@ class _ProfileScreenState extends State<ProfileScreen> {
         child: ListView(
           padding: const EdgeInsets.fromLTRB(24, 20, 24, 120),
           children: [
-            _topBar(avatar),
-            const SizedBox(height: 32),
-            _profileHeader(fullName, avatar),
+            _profileHeader(fullName, safeAvatarId),
             const SizedBox(height: 36),
-            _statsGrid(),
-            const SizedBox(height: 34),
-            _athleteLevel(),
+            _statsGrid(
+              favoriteActivity: favoriteActivity,
+              completedRoutes: completedRoutes,
+              totalKilometers: totalKilometers,
+            ),
             const SizedBox(height: 34),
             _settingsButton(),
+            const SizedBox(height: 14),
+            _changePasswordButton(),
+            const SizedBox(height: 14),
+            _deleteAccountButton(),
             const SizedBox(height: 14),
             _logoutButton(context),
           ],
@@ -100,43 +112,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
     );
   }
 
-  Widget _topBar(String avatar) {
-    return Row(
-      mainAxisAlignment: MainAxisAlignment.spaceBetween,
-      children: [
-        const Row(
-          children: [
-            Icon(Icons.menu, color: primary),
-            SizedBox(width: 14),
-            Text(
-              'TrailAI',
-              style: TextStyle(
-                fontSize: 22,
-                fontWeight: FontWeight.w900,
-                color: primary,
-              ),
-            ),
-          ],
-        ),
-        Container(
-          width: 42,
-          height: 42,
-          decoration: BoxDecoration(
-            color: surfaceContainer,
-            borderRadius: BorderRadius.circular(50),
-          ),
-          child: Center(
-            child: Text(
-              avatar,
-              style: const TextStyle(fontSize: 22),
-            ),
-          ),
-        ),
-      ],
-    );
-  }
-
-  Widget _profileHeader(String fullName, String avatar) {
+  Widget _profileHeader(String fullName, int avatarId) {
     return Column(
       children: [
         Stack(
@@ -157,30 +133,39 @@ class _ProfileScreenState extends State<ProfileScreen> {
                 ],
               ),
               child: Center(
-                child: Text(
-                  avatar,
-                  style: const TextStyle(fontSize: 72),
+                child: AvatarImage(
+                  avatarId: avatarId,
+                  size: 128,
+                  backgroundColor: surfaceContainer,
                 ),
               ),
             ),
             Positioned(
-              right: -4,
-              bottom: -4,
-              child: Container(
-                width: 42,
-                height: 42,
-                decoration: BoxDecoration(
-                  color: Colors.white,
-                  shape: BoxShape.circle,
-                  border: Border.all(color: const Color(0xFFC1C8C2)),
-                  boxShadow: [
-                    BoxShadow(
-                      color: Colors.black.withOpacity(0.12),
-                      blurRadius: 8,
-                    ),
-                  ],
+              right: 4,
+              bottom: 4,
+              child: GestureDetector(
+                onTap: () => _openAvatarPicker(avatarId),
+                child: Container(
+                  width: 40,
+                  height: 40,
+                  decoration: BoxDecoration(
+                    color: primary,
+                    shape: BoxShape.circle,
+                    border: Border.all(color: Colors.white, width: 3),
+                    boxShadow: [
+                      BoxShadow(
+                        color: Colors.black.withOpacity(0.16),
+                        blurRadius: 10,
+                        offset: const Offset(0, 4),
+                      ),
+                    ],
+                  ),
+                  child: const Icon(
+                    Icons.edit_rounded,
+                    color: Colors.white,
+                    size: 18,
+                  ),
                 ),
-                child: const Icon(Icons.edit, color: primary, size: 20),
               ),
             ),
           ],
@@ -189,17 +174,33 @@ class _ProfileScreenState extends State<ProfileScreen> {
         Text(
           fullName,
           textAlign: TextAlign.center,
+          maxLines: 1,
+          overflow: TextOverflow.ellipsis,
           style: const TextStyle(
-            fontSize: 30,
+            fontSize: 24,
             fontWeight: FontWeight.w900,
             color: primary,
+          ),
+        ),
+        const SizedBox(height: 8),
+        const Text(
+          'Nivel intermedio',
+          textAlign: TextAlign.center,
+          style: TextStyle(
+            fontSize: 13,
+            fontWeight: FontWeight.w700,
+            color: secondary,
           ),
         ),
       ],
     );
   }
 
-  Widget _statsGrid() {
+  Widget _statsGrid({
+    required String favoriteActivity,
+    required int completedRoutes,
+    required num totalKilometers,
+  }) {
     return Column(
       children: [
         Container(
@@ -208,14 +209,14 @@ class _ProfileScreenState extends State<ProfileScreen> {
             color: primaryContainer,
             borderRadius: BorderRadius.circular(32),
           ),
-          child: const Row(
+          child: Row(
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
               Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  Text(
-                    'TOTAL KILÓMETROS',
+                  const Text(
+                    'TOTAL KILOMETROS',
                     style: TextStyle(
                       color: Color(0xFF86AF99),
                       fontSize: 11,
@@ -223,20 +224,20 @@ class _ProfileScreenState extends State<ProfileScreen> {
                       letterSpacing: 1.5,
                     ),
                   ),
-                  SizedBox(height: 8),
+                  const SizedBox(height: 8),
                   Row(
                     crossAxisAlignment: CrossAxisAlignment.end,
                     children: [
                       Text(
-                        '1,284',
-                        style: TextStyle(
+                        _formatKmCounter(totalKilometers),
+                        style: const TextStyle(
                           color: Colors.white,
                           fontSize: 38,
                           fontWeight: FontWeight.w900,
                         ),
                       ),
-                      SizedBox(width: 6),
-                      Padding(
+                      const SizedBox(width: 6),
+                      const Padding(
                         padding: EdgeInsets.only(bottom: 7),
                         child: Text(
                           'KM',
@@ -250,7 +251,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
                   ),
                 ],
               ),
-              DecoratedBox(
+              const DecoratedBox(
                 decoration: BoxDecoration(
                   color: Color.fromRGBO(255, 255, 255, 0.10),
                   borderRadius: BorderRadius.all(Radius.circular(18)),
@@ -269,7 +270,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
             Expanded(
               child: _smallStatCard(
                 icon: Icons.route,
-                value: '42',
+                value: completedRoutes.toString(),
                 label: 'Rutas completadas',
               ),
             ),
@@ -277,7 +278,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
             Expanded(
               child: _smallStatCard(
                 icon: Icons.favorite,
-                value: 'Trail Running',
+                value: favoriteActivity,
                 label: 'Actividad favorita',
                 smallerValue: true,
               ),
@@ -295,7 +296,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
     bool smallerValue = false,
   }) {
     return Container(
-      height: 132,
+      height: 146,
       padding: const EdgeInsets.all(20),
       decoration: BoxDecoration(
         color: surfaceLow,
@@ -312,11 +313,13 @@ class _ProfileScreenState extends State<ProfileScreen> {
               Text(
                 value,
                 style: TextStyle(
-                  fontSize: smallerValue ? 20 : 38,
+                  fontSize: smallerValue ? 18 : 38,
                   fontWeight: FontWeight.w900,
                   color: primary,
                   height: 1,
                 ),
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
               ),
               const SizedBox(height: 6),
               Text(
@@ -327,6 +330,8 @@ class _ProfileScreenState extends State<ProfileScreen> {
                   color: Colors.black54,
                   letterSpacing: 1,
                 ),
+                maxLines: 2,
+                overflow: TextOverflow.ellipsis,
               ),
             ],
           ),
@@ -335,70 +340,75 @@ class _ProfileScreenState extends State<ProfileScreen> {
     );
   }
 
-  Widget _athleteLevel() {
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        const Padding(
-          padding: EdgeInsets.only(left: 4, bottom: 14),
-          child: Text(
-            'Nivel de Atleta',
-            style: TextStyle(
-              fontSize: 18,
-              fontWeight: FontWeight.w900,
-              color: primary,
-            ),
-          ),
-        ),
-        Container(
-          padding: const EdgeInsets.all(8),
-          decoration: BoxDecoration(
-            color: Colors.white,
-            borderRadius: BorderRadius.circular(22),
-          ),
-          child: Row(
-            children: [
-              _levelButton('Principiante', false),
-              _levelButton('Intermedio', true),
-              _levelButton('Avanzado', false),
-            ],
-          ),
-        ),
-      ],
-    );
-  }
-
-  Widget _levelButton(String text, bool selected) {
-    return Expanded(
-      child: Container(
-        padding: const EdgeInsets.symmetric(vertical: 14),
-        decoration: BoxDecoration(
-          color: selected ? primary : surfaceContainer,
-          borderRadius: BorderRadius.circular(16),
-          boxShadow: selected
-              ? [
-                  BoxShadow(
-                    color: primary.withOpacity(0.20),
-                    blurRadius: 12,
-                    offset: const Offset(0, 5),
-                  ),
-                ]
-              : [],
-        ),
-        child: Text(
-          text,
-          textAlign: TextAlign.center,
-          style: TextStyle(
-            color: selected ? Colors.white : Colors.black54,
-            fontSize: 12,
-            fontWeight: FontWeight.w900,
-          ),
-        ),
-      ),
-    );
+  String _formatKmCounter(num value) {
+    if (value % 1 == 0) {
+      return value.toInt().toString();
+    }
+    return value.toStringAsFixed(1);
   }
 
   Widget _settingsButton() {
+    return _profileActionTile(
+      icon: Icons.settings,
+      title: 'Ajustes de Cuenta',
+      onTap: () {
+        Navigator.of(
+          context,
+        ).push(MaterialPageRoute(builder: (_) => const EditAccountScreen()));
+      },
+    );
+  }
+
+  Widget _changePasswordButton() {
+    return _profileActionTile(
+      icon: Icons.lock_reset_rounded,
+      title: 'Cambiar contraseña',
+      onTap: () {
+        Navigator.of(
+          context,
+        ).push(MaterialPageRoute(builder: (_) => const ChangePasswordScreen()));
+      },
+    );
+  }
+
+  Widget _logoutButton(BuildContext context) {
+    return _profileActionTile(
+      icon: Icons.logout_rounded,
+      title: 'Cerrar sesion',
+      iconColor: error,
+      titleColor: error,
+      onTap: () async {
+        await AuthService().logout();
+
+        if (!context.mounted) return;
+
+        Provider.of<UserProvider>(context, listen: false).clear();
+        Navigator.pushReplacementNamed(context, AppRoutes.login);
+      },
+    );
+  }
+
+  Widget _deleteAccountButton() {
+    return _profileActionTile(
+      icon: Icons.delete_outline_rounded,
+      title: 'Eliminar cuenta',
+      iconColor: error,
+      titleColor: error,
+      onTap: () {
+        Navigator.of(
+          context,
+        ).push(MaterialPageRoute(builder: (_) => const DeleteAccountScreen()));
+      },
+    );
+  }
+
+  Widget _profileActionTile({
+    required IconData icon,
+    required String title,
+    required VoidCallback onTap,
+    Color iconColor = primary,
+    Color titleColor = primary,
+  }) {
     return Container(
       decoration: BoxDecoration(
         color: Colors.white,
@@ -412,38 +422,14 @@ class _ProfileScreenState extends State<ProfileScreen> {
             color: surfaceContainer,
             borderRadius: BorderRadius.circular(12),
           ),
-          child: const Icon(Icons.settings, color: primary),
+          child: Icon(icon, color: iconColor),
         ),
-        title: const Text(
-          'Ajustes de Cuenta',
-          style: TextStyle(
-            fontWeight: FontWeight.w900,
-            color: primary,
-          ),
+        title: Text(
+          title,
+          style: TextStyle(fontWeight: FontWeight.w900, color: titleColor),
         ),
         trailing: const Icon(Icons.chevron_right, color: Colors.grey),
-        onTap: () {},
-      ),
-    );
-  }
-
-  Widget _logoutButton(BuildContext context) {
-    return TextButton(
-      onPressed: () async {
-        await AuthService().logout();
-
-        if (!context.mounted) return;
-
-        Provider.of<UserProvider>(context, listen: false).clear();
-
-        Navigator.pushReplacementNamed(context, AppRoutes.login);
-      },
-      child: const Text(
-        'Cerrar sesión',
-        style: TextStyle(
-          color: error,
-          fontWeight: FontWeight.w900,
-        ),
+        onTap: onTap,
       ),
     );
   }

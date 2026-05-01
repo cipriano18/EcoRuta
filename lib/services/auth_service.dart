@@ -24,6 +24,7 @@ class AuthService {
     required String address,
     required String password,
     required int avatarId,
+    required String favoriteActivity,
   }) async {
     final userCredential =
         await _auth.createUserWithEmailAndPassword(
@@ -47,6 +48,9 @@ class AuthService {
       'fullName': fullName.trim(),
       'address': address.trim(),
       'avatarId': avatarId,
+      'favoriteActivity': favoriteActivity.trim(),
+      'completed_routes': 0,
+      'km_counter': 0,
       'createdAt': FieldValue.serverTimestamp(),
     });
 
@@ -71,6 +75,80 @@ class AuthService {
     if (!doc.exists || doc.data() == null) return null;
 
     return UserModel.fromMap(doc.data()!);
+  }
+
+  Future<void> updateAvatar(int avatarId) async {
+    final user = _auth.currentUser;
+
+    if (user == null) {
+      throw FirebaseAuthException(
+        code: 'user-null',
+        message: 'No hay un usuario autenticado',
+      );
+    }
+
+    await _firestore.collection('users').doc(user.uid).update({
+      'avatarId': avatarId,
+    });
+  }
+
+  Future<void> updateProfile({
+    required String fullName,
+    required String address,
+    required String favoriteActivity,
+  }) async {
+    final user = _auth.currentUser;
+
+    if (user == null) {
+      throw FirebaseAuthException(
+        code: 'user-null',
+        message: 'No hay un usuario autenticado',
+      );
+    }
+
+    await _firestore.collection('users').doc(user.uid).update({
+      'fullName': fullName.trim(),
+      'address': address.trim(),
+      'favoriteActivity': favoriteActivity.trim(),
+    });
+  }
+
+  Future<void> changePassword({
+    required String currentPassword,
+    required String newPassword,
+  }) async {
+    final user = _auth.currentUser;
+
+    if (user == null || user.email == null) {
+      throw FirebaseAuthException(
+        code: 'user-null',
+        message: 'No hay un usuario autenticado',
+      );
+    }
+
+    final credential = EmailAuthProvider.credential(
+      email: user.email!,
+      password: currentPassword.trim(),
+    );
+
+    await user.reauthenticateWithCredential(credential);
+    await user.updatePassword(newPassword.trim());
+  }
+
+  Future<void> deleteCurrentAccount() async {
+    final user = _auth.currentUser;
+
+    if (user == null) {
+      throw FirebaseAuthException(
+        code: 'user-null',
+        message: 'No hay un usuario autenticado',
+      );
+    }
+
+    final uid = user.uid;
+
+    await user.delete();
+    await _firestore.collection('users').doc(uid).delete();
   }
 
   // LOGOUT

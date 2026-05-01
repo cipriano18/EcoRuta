@@ -58,3 +58,13 @@ class SuggestionItem extends StatelessWidget {
     );
   }
 }
+
+
+/*
+widget para mustrar las sugerencias de ubicaciones
+segun lo que escriba el usuario en los imputs de busqueda
+
+Actualmente se usa en:
+picker_map.dart
+search_tab.dart
+*/

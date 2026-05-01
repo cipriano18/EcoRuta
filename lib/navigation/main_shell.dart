@@ -7,6 +7,13 @@ import '../screens/profile/profile_screen.dart';
 class MainShell extends StatefulWidget {
   const MainShell({super.key});
 
+  static bool navigateToTab(BuildContext context, int index) {
+    final state = context.findAncestorStateOfType<_MainShellState>();
+    if (state == null) return false;
+    state._goToTab(index);
+    return true;
+  }
+
   @override
   State<MainShell> createState() => _MainShellState();
 }
@@ -23,6 +30,11 @@ class _MainShellState extends State<MainShell> {
     MyRoutesScreen(),
     ProfileScreen(),
   ];
+
+  void _goToTab(int index) {
+    if (_currentIndex == index) return;
+    setState(() => _currentIndex = index);
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -56,28 +68,28 @@ class _MainShellState extends State<MainShell> {
                 icon: Icons.home_rounded,
                 label: 'Inicio',
                 active: _currentIndex == 0,
-                onTap: () => setState(() => _currentIndex = 0),
+                onTap: () => _goToTab(0),
                 activeColor: _primaryColor,
               ),
               _NavItem(
                 icon: Icons.explore_rounded,
                 label: 'Explorar',
                 active: _currentIndex == 1,
-                onTap: () => setState(() => _currentIndex = 1),
+                onTap: () => _goToTab(1),
                 activeColor: _primaryColor,
               ),
               _NavItem(
                 icon: Icons.directions_run_rounded,
                 label: 'Mis rutas',
                 active: _currentIndex == 2,
-                onTap: () => setState(() => _currentIndex = 2),
+                onTap: () => _goToTab(2),
                 activeColor: _primaryColor,
               ),
               _NavItem(
                 icon: Icons.person_rounded,
                 label: 'Perfil',
                 active: _currentIndex == 3,
-                onTap: () => setState(() => _currentIndex = 3),
+                onTap: () => _goToTab(3),
                 activeColor: _primaryColor,
               ),
             ],

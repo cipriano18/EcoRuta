@@ -1,9 +1,10 @@
 import 'package:ecoruta/providers/user_provider.dart';
 import 'package:ecoruta/navigation/main_shell.dart';
-import 'package:ecoruta/screens/auth/login_screen.dart';
+import 'package:ecoruta/screens/home/home_screen.dart';
 import 'package:ecoruta/screens/profile/profile_screen.dart';
 import 'package:ecoruta/services/auth_service.dart';
 import 'package:ecoruta/widgets/avatar_image.dart';
+import 'package:ecoruta/widgets/confirm_dialog.dart';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
@@ -22,38 +23,47 @@ class AppHeader extends StatelessWidget implements PreferredSizeWidget {
   final PreferredSizeWidget? bottom;
   final Color? backgroundColor;
 
+  Future<void> _handleLogout(BuildContext context) async {
+    final shouldLogout = await ConfirmDialog.mostrar(
+      context,
+      titulo: 'Cerrar sesion',
+      mensaje:
+          'Estas seguro de que quieres cerrar tu sesion actual en EcoRuta?',
+      textoConfirmar: 'Cerrar sesion',
+    );
+
+    if (!shouldLogout || !context.mounted) return;
+
+    await AuthService().logout();
+
+    if (!context.mounted) return;
+
+    Provider.of<UserProvider>(context, listen: false).clear();
+
+    Navigator.of(context).pushAndRemoveUntil(
+      MaterialPageRoute(builder: (_) => const HomeScreen()),
+      (_) => false,
+    );
+  }
+
   @override
-  Size get preferredSize => Size.fromHeight(
-    kToolbarHeight + (bottom?.preferredSize.height ?? 0),
-  );
+  Size get preferredSize =>
+      Size.fromHeight(kToolbarHeight + (bottom?.preferredSize.height ?? 0));
 
   @override
   Widget build(BuildContext context) {
     return AppBar(
-      backgroundColor: backgroundColor ?? Colors.white.withOpacity(0.92),
+      backgroundColor: backgroundColor ?? Colors.white.withValues(alpha: 0.92),
       elevation: 0,
       scrolledUnderElevation: 0,
       leading: PopupMenuButton<String>(
         icon: const Icon(Icons.menu_rounded, color: _primaryColor),
         onSelected: (value) async {
           if (value != 'logout') return;
-
-          await AuthService().logout();
-
-          if (!context.mounted) return;
-
-          Provider.of<UserProvider>(context, listen: false).clear();
-
-          Navigator.of(context).pushAndRemoveUntil(
-            MaterialPageRoute(builder: (_) => const LoginScreen()),
-            (_) => false,
-          );
+          await _handleLogout(context);
         },
         itemBuilder: (context) => const [
-          PopupMenuItem<String>(
-            value: 'logout',
-            child: Text('Cerrar sesión'),
-          ),
+          PopupMenuItem<String>(value: 'logout', child: Text('Cerrar sesión')),
         ],
       ),
       title: Row(
@@ -83,7 +93,10 @@ class AppHeader extends StatelessWidget implements PreferredSizeWidget {
               padding: const EdgeInsets.only(right: 16),
               child: GestureDetector(
                 onTap: () {
-                  final didNavigateInShell = MainShell.navigateToTab(context, 3);
+                  final didNavigateInShell = MainShell.navigateToTab(
+                    context,
+                    3,
+                  );
                   if (didNavigateInShell) return;
 
                   Navigator.of(context).push(
@@ -96,9 +109,9 @@ class AppHeader extends StatelessWidget implements PreferredSizeWidget {
                   padding: const EdgeInsets.all(2),
                   decoration: BoxDecoration(
                     shape: BoxShape.circle,
-                    color: _primaryColor.withOpacity(0.08),
+                    color: _primaryColor.withValues(alpha: 0.08),
                     border: Border.all(
-                      color: _primaryColor.withOpacity(0.14),
+                      color: _primaryColor.withValues(alpha: 0.14),
                     ),
                   ),
                   child: AvatarImage(

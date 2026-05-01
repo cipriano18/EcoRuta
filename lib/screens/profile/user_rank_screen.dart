@@ -2,10 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:ecoruta/widgets/rank_timeline_card.dart';
 
 class UserRank {
-  const UserRank({
-    required this.title,
-    required this.minKm,
-  });
+  const UserRank({required this.title, required this.minKm});
 
   final String title;
   final int minKm;
@@ -46,11 +43,64 @@ UserRank getUserRank(num kmCounter) {
   return current;
 }
 
+UserRankPalette getUserRankPalette(num kmCounter) {
+  final currentRank = getUserRank(kmCounter);
+  final currentIndex = userRanks.indexWhere(
+    (rank) => rank.title == currentRank.title,
+  );
+  final safeIndex = currentIndex < 0 ? 0 : currentIndex;
+  final importance = safeIndex / (userRanks.length - 1);
+
+  if (importance >= 0.92) {
+    return const UserRankPalette(
+      backgroundColor: Color(0xFFFFF2C7),
+      borderColor: Color(0xFFD3A300),
+      iconColor: Color(0xFF8A6300),
+      textColor: Color(0xFF8A6300),
+    );
+  }
+  if (importance >= 0.8) {
+    return const UserRankPalette(
+      backgroundColor: Color(0xFFFFE1CC),
+      borderColor: Color(0xFFDD7A2A),
+      iconColor: Color(0xFFA14E0B),
+      textColor: Color(0xFFA14E0B),
+    );
+  }
+  if (importance >= 0.65) {
+    return const UserRankPalette(
+      backgroundColor: Color(0xFFFFD9DE),
+      borderColor: Color(0xFFD35A72),
+      iconColor: Color(0xFF9E2441),
+      textColor: Color(0xFF9E2441),
+    );
+  }
+  if (importance >= 0.45) {
+    return const UserRankPalette(
+      backgroundColor: Color(0xFFDDF0E9),
+      borderColor: Color(0xFF3B8A67),
+      iconColor: Color(0xFF1F5C41),
+      textColor: Color(0xFF1F5C41),
+    );
+  }
+  if (importance >= 0.25) {
+    return const UserRankPalette(
+      backgroundColor: Color(0xFFE5EEF7),
+      borderColor: Color(0xFF5D86B2),
+      iconColor: Color(0xFF36597F),
+      textColor: Color(0xFF36597F),
+    );
+  }
+  return const UserRankPalette(
+    backgroundColor: Color(0xFFF1F3F4),
+    borderColor: Color(0xFFC8CED2),
+    iconColor: Color(0xFF6A747A),
+    textColor: Color(0xFF6A747A),
+  );
+}
+
 class UserRankScreen extends StatefulWidget {
-  const UserRankScreen({
-    super.key,
-    required this.kmCounter,
-  });
+  const UserRankScreen({super.key, required this.kmCounter});
 
   final num kmCounter;
 
@@ -91,6 +141,7 @@ class _UserRankScreenState extends State<UserRankScreen> {
   @override
   Widget build(BuildContext context) {
     final currentRank = getUserRank(widget.kmCounter);
+    final currentPalette = getUserRankPalette(widget.kmCounter);
     final reversedRanks = userRanks.reversed.toList();
 
     return Scaffold(
@@ -132,7 +183,7 @@ class _UserRankScreenState extends State<UserRankScreen> {
               Container(
                 padding: const EdgeInsets.all(18),
                 decoration: BoxDecoration(
-                  color: Colors.white,
+                  color: currentPalette.backgroundColor,
                   borderRadius: BorderRadius.circular(24),
                 ),
                 child: Row(
@@ -141,12 +192,12 @@ class _UserRankScreenState extends State<UserRankScreen> {
                       width: 52,
                       height: 52,
                       decoration: BoxDecoration(
-                        color: const Color(0xFFCFEFDC),
+                        color: Colors.white.withValues(alpha: 0.42),
                         borderRadius: BorderRadius.circular(16),
                       ),
-                      child: const Icon(
+                      child: Icon(
                         Icons.military_tech_rounded,
-                        color: _primary,
+                        color: currentPalette.iconColor,
                         size: 28,
                       ),
                     ),
@@ -157,19 +208,21 @@ class _UserRankScreenState extends State<UserRankScreen> {
                         children: [
                           Text(
                             currentRank.title,
-                            style: const TextStyle(
+                            style: TextStyle(
                               fontSize: 20,
                               fontWeight: FontWeight.w900,
-                              color: _primary,
+                              color: currentPalette.textColor,
                             ),
                           ),
                           const SizedBox(height: 4),
                           Text(
                             '${_formatKm(widget.kmCounter)} km acumulados',
-                            style: const TextStyle(
+                            style: TextStyle(
                               fontSize: 13,
                               fontWeight: FontWeight.w700,
-                              color: Colors.black54,
+                              color: currentPalette.textColor.withValues(
+                                alpha: 0.78,
+                              ),
                             ),
                           ),
                         ],
@@ -188,8 +241,7 @@ class _UserRankScreenState extends State<UserRankScreen> {
                     final rank = reversedRanks[index];
                     final isCurrent = rank.title == currentRank.title;
                     final isUnlocked = widget.kmCounter >= rank.minKm;
-                    final importance =
-                        1 - (index / (reversedRanks.length - 1));
+                    final importance = 1 - (index / (reversedRanks.length - 1));
 
                     return Row(
                       crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -263,4 +315,18 @@ class _UserRankScreenState extends State<UserRankScreen> {
     }
     return value.toStringAsFixed(1);
   }
+}
+
+class UserRankPalette {
+  const UserRankPalette({
+    required this.backgroundColor,
+    required this.borderColor,
+    required this.iconColor,
+    required this.textColor,
+  });
+
+  final Color backgroundColor;
+  final Color borderColor;
+  final Color iconColor;
+  final Color textColor;
 }

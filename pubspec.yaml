@@ -45,6 +45,7 @@ dependencies:
   firebase_core: ^4.7.0
   firebase_auth: ^6.4.0
   cloud_firestore: ^6.3.0
+  font_awesome_flutter: ^10.11.0
 
 dev_dependencies:
   flutter_test:
@@ -70,6 +71,8 @@ flutter:
     - assets/videos/welcome.mp4
     - assets/images/welcome.png
     - assets/images/avatars/
+    - assets/images/Chonetes/
+    - assets/images/Frogs/
   # To add assets to your application, add an assets section, like this:
   # assets:
   #   - images/a_dot_burr.jpeg

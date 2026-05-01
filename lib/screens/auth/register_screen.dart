@@ -15,11 +15,7 @@ class RegisterScreen extends StatefulWidget {
 }
 
 class _RegisterScreenState extends State<RegisterScreen> {
-  static const _favoriteActivities = [
-    'Senderismo',
-    'Ciclismo',
-    'Running',
-  ];
+  static const _favoriteActivities = ['Senderismo', 'Ciclismo', 'Running'];
 
   int selectedAvatar = 0;
   bool obscurePassword = true;
@@ -99,13 +95,13 @@ class _RegisterScreenState extends State<RegisterScreen> {
         mensaje = 'La contrasena es muy debil';
       }
 
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text(mensaje)),
-      );
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text(mensaje)));
     } catch (e) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Error inesperado: $e')),
-      );
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text('Error inesperado: $e')));
     } finally {
       if (mounted) {
         setState(() {
@@ -268,7 +264,9 @@ class _RegisterScreenState extends State<RegisterScreen> {
                       padding: const EdgeInsets.all(4),
                       decoration: BoxDecoration(
                         shape: BoxShape.circle,
-                        color: isSelected ? Colors.green.shade100 : surfaceColor,
+                        color: isSelected
+                            ? Colors.green.shade100
+                            : surfaceColor,
                         border: Border.all(
                           color: isSelected
                               ? Colors.green.shade700
@@ -299,7 +297,13 @@ class _RegisterScreenState extends State<RegisterScreen> {
                   ),
                   child: isLoading
                       ? const CircularProgressIndicator(color: Colors.white)
-                      : const Text('Registrarse'),
+                      : const Text(
+                          'Registrarse',
+                          style: TextStyle(
+                            color: Colors.white,
+                            fontWeight: FontWeight.w800,
+                          ),
+                        ),
                 ),
               ),
             ],

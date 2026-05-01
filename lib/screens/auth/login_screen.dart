@@ -2,6 +2,7 @@ import 'package:ecoruta/models/user_model.dart';
 import 'package:ecoruta/providers/user_provider.dart';
 import 'package:ecoruta/routes/app_routes.dart';
 import 'package:ecoruta/services/auth_service.dart';
+import 'package:font_awesome_flutter/font_awesome_flutter.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
@@ -21,70 +22,71 @@ class _LoginScreenState extends State<LoginScreen> {
   final TextEditingController emailController = TextEditingController();
   final TextEditingController passwordController = TextEditingController();
 
-Future<void> loginUser() async {
-  final email = emailController.text.trim();
-  final password = passwordController.text.trim();
+  Future<void> loginUser() async {
+    final email = emailController.text.trim();
+    final password = passwordController.text.trim();
 
-  if (email.isEmpty || password.isEmpty) {
-    ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(content: Text('Ingrese correo y contraseña')),
-    );
-    return;
-  }
+    if (email.isEmpty || password.isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Ingrese correo y contraseña')),
+      );
+      return;
+    }
 
-  setState(() {
-    isLoading = true;
-  });
+    setState(() {
+      isLoading = true;
+    });
 
-  try {
-    final userCredential = await AuthService().login(
-      email: email,
-      password: password,
-    );
+    try {
+      final userCredential = await AuthService().login(
+        email: email,
+        password: password,
+      );
 
-    final uid = userCredential.user!.uid;
+      final uid = userCredential.user!.uid;
 
-    final data = await AuthService().getUserData(uid);
+      final data = await AuthService().getUserData(uid);
 
-    if (data != null) {
-      final userModel = UserModel.fromMap(data);
+      if (data != null) {
+        final userModel = UserModel.fromMap(data);
+
+        if (!mounted) return;
+
+        Provider.of<UserProvider>(context, listen: false).setUser(userModel);
+      }
 
       if (!mounted) return;
 
-      Provider.of<UserProvider>(context, listen: false).setUser(userModel);
-    }
+      Navigator.pushReplacementNamed(context, AppRoutes.shell);
+    } on FirebaseAuthException catch (e) {
+      String mensaje = 'Error al iniciar sesión';
 
-    if (!mounted) return;
+      if (e.code == 'user-not-found') {
+        mensaje = 'No existe un usuario con ese correo';
+      } else if (e.code == 'wrong-password') {
+        mensaje = 'Contraseña incorrecta';
+      } else if (e.code == 'invalid-email') {
+        mensaje = 'Correo inválido';
+      } else if (e.code == 'invalid-credential') {
+        mensaje = 'Correo o contraseña incorrectos';
+      }
 
-    Navigator.pushReplacementNamed(context, AppRoutes.shell);
-  } on FirebaseAuthException catch (e) {
-    String mensaje = 'Error al iniciar sesión';
-
-    if (e.code == 'user-not-found') {
-      mensaje = 'No existe un usuario con ese correo';
-    } else if (e.code == 'wrong-password') {
-      mensaje = 'Contraseña incorrecta';
-    } else if (e.code == 'invalid-email') {
-      mensaje = 'Correo inválido';
-    } else if (e.code == 'invalid-credential') {
-      mensaje = 'Correo o contraseña incorrectos';
-    }
-
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(content: Text(mensaje)),
-    );
-  } catch (e) {
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(content: Text('Error inesperado: $e')),
-    );
-  } finally {
-    if (mounted) {
-      setState(() {
-        isLoading = false;
-      });
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text(mensaje)));
+    } catch (e) {
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text('Error inesperado: $e')));
+    } finally {
+      if (mounted) {
+        setState(() {
+          isLoading = false;
+        });
+      }
     }
   }
-}
+
   @override
   void dispose() {
     emailController.dispose();
@@ -333,16 +335,11 @@ Future<void> loginUser() async {
                       Container(
                         width: 22,
                         height: 22,
-                        decoration: const BoxDecoration(shape: BoxShape.circle),
-                        child: const Center(
-                          child: Text(
-                            'G',
-                            style: TextStyle(
-                              fontSize: 18,
-                              fontWeight: FontWeight.bold,
-                              color: Colors.blue,
-                            ),
-                          ),
+                        alignment: Alignment.center,
+                        child: const FaIcon(
+                          FontAwesomeIcons.google,
+                          size: 18,
+                          color: Color(0xFF4285F4),
                         ),
                       ),
                       const SizedBox(width: 10),

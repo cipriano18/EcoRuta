@@ -21,7 +21,7 @@ class OverpassService {
           Uri.parse(_endpoint),
           headers: const {
             'Content-Type': 'application/x-www-form-urlencoded',
-            'Accept': 'application/json',
+            'User-Agent': 'EcoRutaCR/1.0',
           },
           body: {'data': query},
         )

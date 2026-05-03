@@ -11,19 +11,25 @@ enum RoutingPreference { masCorta, masRapida, masDesafiante }
 class AStarRouter {
   const AStarRouter();
 
-  // Encuentra la ruta óptima entre startId y goalId usando A*.
-  // Devuelve null si no existe ningún camino conectado.
   RouteResult? findRoute({
     required List<GeoNode> nodes,
     required List<GeoEdge> edges,
     required int startId,
     required int goalId,
+    required RouteProfile profile,
     RoutingPreference preference = RoutingPreference.masCorta,
   }) {
     final nodeMap = {for (final n in nodes) n.id: n};
     final startNode = nodeMap[startId];
     final goalNode = nodeMap[goalId];
     if (startNode == null || goalNode == null) return null;
+    if (startId == goalId) {
+      return RouteResult(
+        path: [startNode],
+        totalDistanceMeters: 0,
+        estimatedDurationSeconds: 0,
+      );
+    }
 
     final adjacency = _buildAdjacency(edges);
 
@@ -42,12 +48,38 @@ class AStarRouter {
 
       if (current.id == goalId) {
         return _reconstructPath(cameFromEdge, nodeMap, startId, goalId);
+
+    final gScore = <int, double>{startId: 0.0};
+    final fScore = <int, double>{
+      startId: _heuristic(startNode, goalNode, profile, preference),
+    };
+    final cameFrom = <int, GeoEdge>{};
+    final closedSet = <int>{};
+    final openQueue = PriorityQueue<_AStarEntry>(
+      (a, b) => a.f.compareTo(b.f),
+    )..add(_AStarEntry(startId, fScore[startId]!));
+
+    while (openQueue.isNotEmpty) {
+      final currentEntry = openQueue.removeFirst();
+      final current = currentEntry.id;
+
+      if (closedSet.contains(current)) continue;
+      if (currentEntry.f > (fScore[current] ?? double.infinity)) continue;
+      closedSet.add(current);
+
+      if (current == goalId) {
+        return _reconstructPath(
+          cameFrom,
+          nodeMap,
+          profile,
+          current,
+        );
       }
 
       for (final edge in adjacency[current.id] ?? const <GeoEdge>[]) {
         if (closed.contains(edge.toNodeId)) continue;
         final neighbor = edge.toNodeId;
-        if (nodeMap[neighbor] == null) continue;
+        if (closedSet.contains(neighbor)) continue;
 
         final tentativeG = gScore[current.id]! + _edgeCost(edge, preference);
 
@@ -60,6 +92,26 @@ class AStarRouter {
               tentativeG + _heuristic(nodeMap[neighbor]!, goalNode),
             ),
           );
+        final fromNode = nodeMap[current];
+        final toNode = nodeMap[neighbor];
+        if (fromNode == null || toNode == null) continue;
+
+        final tentativeG = (gScore[current] ?? double.infinity) +
+            _edgeSearchCost(
+              edge,
+              fromNode,
+              toNode,
+              profile,
+              preference,
+            );
+
+        if (tentativeG < (gScore[neighbor] ?? double.infinity)) {
+          cameFrom[neighbor] = edge;
+          gScore[neighbor] = tentativeG;
+          final nextF = tentativeG +
+              _heuristic(toNode, goalNode, profile, preference);
+          fScore[neighbor] = nextF;
+          openQueue.add(_AStarEntry(neighbor, nextF));
         }
       }
     }
@@ -67,8 +119,6 @@ class AStarRouter {
     return null;
   }
 
-  // Devuelve el nodo más cercano a las coordenadas dadas dentro del
-  // componente conexo más grande del grafo, evitando segmentos aislados.
   GeoNode? nearestNode(
     List<GeoNode> nodes,
     List<GeoEdge> edges,
@@ -96,7 +146,24 @@ class AStarRouter {
     return nearest;
   }
 
-  // Devuelve los nodos que pertenecen al componente conexo más grande.
+  List<GeoNode> nearestNodes(
+    List<GeoNode> nodes,
+    double latitude,
+    double longitude, {
+    int limit = 8,
+  }) {
+    if (nodes.isEmpty || limit <= 0) return const [];
+
+    final sorted = [...nodes];
+    sorted.sort(
+      (a, b) => _haversine(a.latitude, a.longitude, latitude, longitude)
+          .compareTo(
+            _haversine(b.latitude, b.longitude, latitude, longitude),
+          ),
+    );
+    return sorted.take(limit).toList(growable: false);
+  }
+
   List<GeoNode> _mainComponentNodes(
     List<GeoNode> nodes,
     List<GeoEdge> edges,
@@ -138,54 +205,74 @@ class AStarRouter {
     return map;
   }
 
-  double _edgeCost(GeoEdge edge, RoutingPreference preference) {
+  double _edgeSearchCost(
+    GeoEdge edge,
+    GeoNode fromNode,
+    GeoNode toNode,
+    RouteProfile profile,
+    RoutingPreference preference,
+  ) {
     switch (preference) {
       case RoutingPreference.masCorta:
-        // Minimiza distancia física.
         return edge.distanceMeters;
-
       case RoutingPreference.masRapida:
-        // Penaliza terrenos lentos (escaleras, pistas sin asfaltar).
-        return edge.distanceMeters * _speedFactor(edge);
-
+        return _edgeTravelTimeSeconds(edge, profile);
       case RoutingPreference.masDesafiante:
-        // Divide por dificultad: cuanto más difícil el terreno, menor el
-        // costo, por lo que A* lo prefiere frente a caminos fáciles.
-        return edge.distanceMeters / _difficultyFactor(edge);
+        final climbMeters = _positiveElevationGain(fromNode, toNode);
+        final climbRewardFactor = 1 + (climbMeters / 12);
+        return (edge.distanceMeters / climbRewardFactor) +
+            (edge.distanceMeters * 0.15);
     }
   }
 
-  // Factor < 1 acelera el tramo; factor > 1 lo penaliza.
-  double _speedFactor(GeoEdge edge) {
-    switch (edge.tags['highway'] ?? '') {
-      case 'residential':
-      case 'service':
-        return 0.7;
-      case 'cycleway':
-      case 'footway':
-        return 0.9;
-      case 'track':
-        return 1.3;
-      case 'steps':
-        return 2.0;
-      default:
-        return 1.0;
+  double _edgeTravelTimeSeconds(GeoEdge edge, RouteProfile profile) {
+    final baseSpeed = _baseSpeedMps(profile);
+    if (baseSpeed <= 0) return double.infinity;
+    return edge.distanceMeters * _terrainTimeFactor(edge, profile) / baseSpeed;
+  }
+
+  double _terrainTimeFactor(GeoEdge edge, RouteProfile profile) {
+    final highway = edge.tags['highway'] ?? '';
+
+    switch (profile) {
+      case RouteProfile.cycling:
+        return switch (highway) {
+          'cycleway' => 0.9,
+          'residential' || 'service' || 'living_street' => 1.0,
+          'path' => 1.2,
+          'track' => 1.35,
+          'steps' => 4.0,
+          _ => 1.1,
+        };
+      case RouteProfile.running:
+        return switch (highway) {
+          'footway' || 'path' => 1.0,
+          'pedestrian' || 'living_street' => 0.95,
+          'track' => 1.1,
+          'service' || 'residential' => 1.05,
+          'steps' => 1.9,
+          _ => 1.1,
+        };
+      case RouteProfile.hiking:
+        return switch (highway) {
+          'path' || 'footway' => 1.0,
+          'pedestrian' => 0.95,
+          'track' => 1.15,
+          'service' || 'residential' || 'living_street' => 1.05,
+          'steps' => 1.75,
+          _ => 1.1,
+        };
     }
   }
 
-  // Factor > 1 indica terreno más exigente.
-  double _difficultyFactor(GeoEdge edge) {
-    switch (edge.tags['highway'] ?? '') {
-      case 'steps':
-        return 4.0;
-      case 'track':
+  double _baseSpeedMps(RouteProfile profile) {
+    switch (profile) {
+      case RouteProfile.cycling:
+        return 3.89;
+      case RouteProfile.running:
         return 3.0;
-      case 'path':
-        return 2.5;
-      case 'footway':
-        return 1.5;
-      default:
-        return 1.0;
+      case RouteProfile.hiking:
+        return 1.11;
     }
   }
 
@@ -201,6 +288,34 @@ class AStarRouter {
 
   double _heuristic(GeoNode from, GeoNode to) =>
       _haversine(from.latitude, from.longitude, to.latitude, to.longitude);
+=
+  double _maxHeuristicSpeed(RouteProfile profile) {
+    final baseSpeed = _baseSpeedMps(profile);
+    final minTerrainFactor = switch (profile) {
+      RouteProfile.cycling => 0.9,
+      RouteProfile.running => 0.95,
+      RouteProfile.hiking => 0.95,
+    };
+    return baseSpeed / minTerrainFactor;
+  }
+
+  double _heuristic(
+    GeoNode from,
+    GeoNode to,
+    RouteProfile profile,
+    RoutingPreference preference,
+  ) {
+    final distance =
+        _haversine(from.latitude, from.longitude, to.latitude, to.longitude);
+    switch (preference) {
+      case RoutingPreference.masCorta:
+        return distance;
+      case RoutingPreference.masRapida:
+        return distance / _maxHeuristicSpeed(profile);
+      case RoutingPreference.masDesafiante:
+        return 0;
+    }
+  }
 
   double _haversine(double lat1, double lon1, double lat2, double lon2) {
     const r = 6371000.0;
@@ -242,8 +357,62 @@ class AStarRouter {
       path: path.reversed.toList(),
       totalDistanceMeters: totalDistance,
       estimatedDurationSeconds: totalDuration.round(),
+
+    Map<int, GeoEdge> cameFrom,
+    Map<int, GeoNode> nodeMap,
+    RouteProfile profile,
+    int current,
+  ) {
+    final path = <GeoNode>[];
+    final pathEdges = <GeoEdge>[];
+    var nodeId = current;
+
+    while (cameFrom.containsKey(nodeId)) {
+      path.add(nodeMap[nodeId]!);
+      final edge = cameFrom[nodeId]!;
+      pathEdges.add(edge);
+      nodeId = edge.fromNodeId;
+    }
+    path.add(nodeMap[nodeId]!);
+
+    final orderedPath = path.reversed.toList();
+    final orderedEdges = pathEdges.reversed.toList();
+    var totalDistanceMeters = 0.0;
+    var estimatedDurationSeconds = 0.0;
+    var elevationGainMeters = 0.0;
+
+    for (var i = 0; i < orderedEdges.length; i++) {
+      final edge = orderedEdges[i];
+      final fromNode = orderedPath[i];
+      final toNode = orderedPath[i + 1];
+
+      totalDistanceMeters += edge.distanceMeters;
+      estimatedDurationSeconds += _edgeTravelTimeSeconds(edge, profile);
+      elevationGainMeters += _positiveElevationGain(fromNode, toNode);
+    }
+
+    return RouteResult(
+      path: orderedPath,
+      totalDistanceMeters: totalDistanceMeters,
+      estimatedDurationSeconds: estimatedDurationSeconds.round(),
+      elevationGainMeters: elevationGainMeters,
     );
   }
+
+  double _positiveElevationGain(GeoNode fromNode, GeoNode toNode) {
+    final fromElevation = fromNode.elevation;
+    final toElevation = toNode.elevation;
+    if (fromElevation == null || toElevation == null) return 0;
+    final diff = toElevation - fromElevation;
+    return diff > 0 ? diff : 0;
+  }
+}
+
+class _AStarEntry {
+  const _AStarEntry(this.id, this.f);
+
+  final int id;
+  final double f;
 }
 
 class _AStarEntry {

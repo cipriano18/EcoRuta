@@ -1,11 +1,7 @@
 import 'package:flutter/material.dart';
 
-/// Diálogo de confirmación reutilizable para acciones destructivas.
+/// Dialogo de confirmacion reutilizable para distintas acciones.
 class ConfirmDialog extends StatelessWidget {
-  final String titulo;
-  final String mensaje;
-  final String textoConfirmar;
-
   const ConfirmDialog({
     super.key,
     required this.titulo,
@@ -13,7 +9,15 @@ class ConfirmDialog extends StatelessWidget {
     this.textoConfirmar = 'Eliminar',
   });
 
-  /// Muestra el diálogo y retorna [true] si el usuario confirma, [false] si cancela.
+  static const _primary = Color(0xFF012D1D);
+  static const _surface = Color(0xFFF8F9FA);
+  static const _surfaceLow = Color(0xFFF3F4F5);
+
+  final String titulo;
+  final String mensaje;
+  final String textoConfirmar;
+
+  /// Muestra el dialogo y retorna [true] si el usuario confirma, [false] si cancela.
   static Future<bool> mostrar(
     BuildContext context, {
     required String titulo,
@@ -34,19 +38,76 @@ class ConfirmDialog extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return AlertDialog(
-      title: Text(titulo),
-      content: Text(mensaje),
-      actions: [
-        TextButton(
-          onPressed: () => Navigator.of(context).pop(false),
-          child: const Text('Cancelar'),
-        ),
-        FilledButton(
-          style: FilledButton.styleFrom(backgroundColor: Colors.red),
-          onPressed: () => Navigator.of(context).pop(true),
-          child: Text(textoConfirmar),
-        ),
-      ],
+      backgroundColor: _surface,
+      surfaceTintColor: Colors.transparent,
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(28)),
+      contentPadding: const EdgeInsets.fromLTRB(24, 24, 24, 20),
+      titlePadding: EdgeInsets.zero,
+      actionsPadding: EdgeInsets.zero,
+      content: Column(
+        mainAxisSize: MainAxisSize.min,
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(
+            titulo,
+            style: const TextStyle(
+              fontSize: 22,
+              fontWeight: FontWeight.w900,
+              color: _primary,
+            ),
+          ),
+          const SizedBox(height: 10),
+          Text(
+            mensaje,
+            style: const TextStyle(
+              fontSize: 14,
+              height: 1.45,
+              color: Colors.black54,
+            ),
+          ),
+          const SizedBox(height: 22),
+          Row(
+            children: [
+              Expanded(
+                child: OutlinedButton(
+                  style: OutlinedButton.styleFrom(
+                    foregroundColor: _primary,
+                    backgroundColor: _surfaceLow,
+                    side: BorderSide.none,
+                    padding: const EdgeInsets.symmetric(vertical: 14),
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(16),
+                    ),
+                  ),
+                  onPressed: () => Navigator.of(context).pop(false),
+                  child: const Text(
+                    'Cancelar',
+                    style: TextStyle(fontWeight: FontWeight.w800),
+                  ),
+                ),
+              ),
+              const SizedBox(width: 12),
+              Expanded(
+                child: FilledButton(
+                  style: FilledButton.styleFrom(
+                    backgroundColor: _primary,
+                    foregroundColor: Colors.white,
+                    padding: const EdgeInsets.symmetric(vertical: 14),
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(16),
+                    ),
+                  ),
+                  onPressed: () => Navigator.of(context).pop(true),
+                  child: Text(
+                    textoConfirmar,
+                    style: const TextStyle(fontWeight: FontWeight.w800),
+                  ),
+                ),
+              ),
+            ],
+          ),
+        ],
+      ),
     );
   }
 }

@@ -1,153 +1,244 @@
-import 'package:ecoruta/widgets/route_metric.dart';
 import 'package:flutter/material.dart';
 
 class RouteResultCard extends StatelessWidget {
+  static const _primaryColor = Color(0xFF012D1D);
+  static const _secondaryContainer = Color(0xFFAEEECB);
+  static const _highlightBadgeColor = Color(0xFFFF825C);
+  static const _highlightTextColor = Color(0xFF4C1000);
+
   final String title;
-  final String subtitle;
-  final String difficulty;
   final String distance;
   final String duration;
-  final String altitude;
-  final double imageHeight;
-  final VoidCallback? onTap;
+  final String elevationGain;
+  final Color accentColor;
+  final IconData icon;
+  final String? badge;
+  final bool isHighlighted;
+  final String buttonText;
+  final VoidCallback? onPressed;
 
   const RouteResultCard({
     super.key,
     required this.title,
-    required this.subtitle,
-    required this.difficulty,
     required this.distance,
-    required this.altitude,
     required this.duration,
-    this.imageHeight = 180,
-    this.onTap,
+    required this.elevationGain,
+    required this.accentColor,
+    required this.icon,
+    this.badge,
+    this.isHighlighted = false,
+    this.buttonText = 'Seleccionar',
+    this.onPressed,
   });
-
-  static const _primaryColor = Color(0xFF012D1D);
-  static const _orangeColor = Color(0xFFFF7043);
 
   @override
   Widget build(BuildContext context) {
-    return GestureDetector(
-      onTap: onTap,
-      child: Container(
-        decoration: BoxDecoration(
-          color: Colors.white,
-          borderRadius: BorderRadius.circular(24),
-          border: Border.all(color: Colors.grey.shade200),
-        ),
-        clipBehavior: Clip.hardEdge,
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Stack(
-              children: [
-                Container(
-                  height: imageHeight,
-                  color: Colors.grey.shade300,
-                  child: const Center(
-                    child: Icon(
-                      Icons.image_rounded,
-                      size: 40,
-                      color: Colors.grey,
-                    ),
+    return Container(
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(30),
+        border: Border.all(color: Colors.grey.shade100),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withOpacity(0.04),
+            blurRadius: 14,
+            offset: const Offset(0, 6),
+          ),
+        ],
+      ),
+      child: Stack(
+        children: [
+          if (badge != null)
+            Positioned(
+              right: 0,
+              top: 0,
+              child: Container(
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 14,
+                  vertical: 7,
+                ),
+                decoration: BoxDecoration(
+                  color: isHighlighted ? _highlightBadgeColor : _primaryColor,
+                  borderRadius: const BorderRadius.only(
+                    topRight: Radius.circular(28),
+                    bottomLeft: Radius.circular(22),
                   ),
                 ),
-                Positioned(
-                  top: 12,
-                  right: 12,
-                  child: Container(
-                    padding: const EdgeInsets.symmetric(
-                      horizontal: 12,
-                      vertical: 4,
+                child: Text(
+                  badge!,
+                  style: TextStyle(
+                    color: isHighlighted ? _highlightTextColor : Colors.white,
+                    fontSize: 10,
+                    fontWeight: FontWeight.w900,
+                    letterSpacing: 0.8,
+                  ),
+                ),
+              ),
+            ),
+          Padding(
+            padding: const EdgeInsets.all(16),
+            child: Column(
+              children: [
+                Row(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Container(
+                      width: 96,
+                      height: 96,
+                      decoration: BoxDecoration(
+                        borderRadius: BorderRadius.circular(22),
+                        gradient: LinearGradient(
+                          begin: Alignment.topLeft,
+                          end: Alignment.bottomRight,
+                          colors: [accentColor, accentColor.withOpacity(0.55)],
+                        ),
+                      ),
+                      child: Stack(
+                        children: [
+                          Positioned.fill(
+                            child: DecoratedBox(
+                              decoration: BoxDecoration(
+                                borderRadius: BorderRadius.circular(22),
+                                border: Border.all(
+                                  color: Colors.white.withOpacity(0.35),
+                                ),
+                              ),
+                            ),
+                          ),
+                          const Positioned(
+                            left: 12,
+                            top: 12,
+                            child: Icon(
+                              Icons.map_rounded,
+                              size: 20,
+                              color: _primaryColor,
+                            ),
+                          ),
+                          Center(
+                            child: Icon(icon, size: 34, color: _primaryColor),
+                          ),
+                        ],
+                      ),
                     ),
-                    decoration: BoxDecoration(
-                      color: _orangeColor,
-                      borderRadius: BorderRadius.circular(20),
+                    const SizedBox(width: 14),
+                    Expanded(
+                      child: Padding(
+                        padding: EdgeInsets.only(top: badge != null ? 8 : 4),
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text(
+                              title,
+                              style: const TextStyle(
+                                fontSize: 20,
+                                fontWeight: FontWeight.w800,
+                                color: _primaryColor,
+                                letterSpacing: -0.4,
+                              ),
+                            ),
+                            const SizedBox(height: 8),
+                            Wrap(
+                              spacing: 14,
+                              runSpacing: 8,
+                              children: [
+                                _MetricChip(
+                                  icon: Icons.straighten_rounded,
+                                  value: distance,
+                                  valueColor: Colors.grey.shade700,
+                                ),
+                                _MetricChip(
+                                  icon: Icons.schedule_rounded,
+                                  value: duration,
+                                  valueColor: Colors.grey.shade700,
+                                ),
+                                _MetricChip(
+                                  icon: Icons.trending_up_rounded,
+                                  value: elevationGain,
+                                  iconColor: const Color(0xFF721D00),
+                                  valueColor: const Color(0xFF721D00),
+                                  emphasized: true,
+                                ),
+                              ],
+                            ),
+                          ],
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 14),
+                SizedBox(
+                  width: double.infinity,
+                  child: FilledButton(
+                    onPressed: onPressed,
+                    style: FilledButton.styleFrom(
+                      backgroundColor: _secondaryContainer,
+                      foregroundColor: _primaryColor,
+                      elevation: 0,
+                      padding: const EdgeInsets.symmetric(vertical: 14),
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(16),
+                      ),
                     ),
                     child: Text(
-                      difficulty.toUpperCase(),
+                      buttonText,
                       style: const TextStyle(
-                        fontSize: 10,
-                        fontWeight: FontWeight.w900,
-                        color: Colors.white,
-                        letterSpacing: 1.5,
+                        fontSize: 14,
+                        fontWeight: FontWeight.w800,
                       ),
                     ),
                   ),
                 ),
               ],
             ),
-            Padding(
-              padding: const EdgeInsets.all(20),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    title,
-                    style: const TextStyle(
-                      fontSize: 22,
-                      fontWeight: FontWeight.w800,
-                      color: _primaryColor,
-                      letterSpacing: -0.3,
-                    ),
-                  ),
-                  const SizedBox(height: 4),
-                  Text(
-                    subtitle,
-                    style: const TextStyle(fontSize: 13, color: Colors.grey),
-                  ),
-                  const SizedBox(height: 16),
-                  const Divider(height: 1),
-                  const SizedBox(height: 16),
-                  Row(
-                    children: [
-                      Expanded(
-                        child: RouteMetric(
-                          icon: Icons.straighten_rounded,
-                          label: 'Distancia',
-                          value: distance,
-                          unit: 'km',
-                        ),
-                      ),
-
-                      Container(
-                        width: 1,
-                        height: 36,
-                        color: const Color(0xFFE1E3E4),
-                      ),
-
-                      Expanded(
-                        child: RouteMetric(
-                          icon: Icons.schedule_rounded,
-                          label: 'Tiempo',
-                          value: duration,
-                          unit: 'h',
-                        ),
-                      ),
-
-                      Container(
-                        width: 1,
-                        height: 36,
-                        color: const Color(0xFFE1E3E4),
-                      ),
-
-                      Expanded(
-                        child: RouteMetric(
-                          icon: Icons.terrain_rounded,
-                          label: 'Altitud',
-                          value: altitude,
-                          unit: 'm',
-                        ),
-                      ),
-                    ],
-                  ),
-                ],
-              ),
-            ),
-          ],
-        ),
+          ),
+        ],
       ),
     );
   }
 }
+
+class _MetricChip extends StatelessWidget {
+  const _MetricChip({
+    required this.icon,
+    required this.value,
+    required this.valueColor,
+    this.iconColor = Colors.grey,
+    this.emphasized = false,
+  });
+
+  final IconData icon;
+  final String value;
+  final Color iconColor;
+  final Color valueColor;
+  final bool emphasized;
+
+  @override
+  Widget build(BuildContext context) {
+    return Row(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        Icon(icon, size: 16, color: iconColor),
+        const SizedBox(width: 4),
+        Text(
+          value,
+          style: TextStyle(
+            fontSize: 12,
+            fontWeight: emphasized ? FontWeight.w800 : FontWeight.w600,
+            color: valueColor,
+          ),
+        ),
+      ],
+    );
+  }
+}
+
+/*
+Este archivo corresponde a las cards de resultado de busqueda o generaciond de las rutas.
+Actualmente se utliza en:
+
+screens/explore/tabs:
+
+ - generate_tab.dart
+ - search_tab.dart
+*/

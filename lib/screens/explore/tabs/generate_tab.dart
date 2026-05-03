@@ -1,10 +1,18 @@
-import 'dart:ui';
-
+import 'package:ecoruta/models/route_profile.dart';
+import 'package:ecoruta/screens/explore/route_preview_screen.dart';
+import 'package:ecoruta/providers/explore_provider.dart';
+import 'package:ecoruta/screens/picker_map.dart';
+import 'package:ecoruta/services/routing/a_star_router.dart';
+import 'package:ecoruta/services/routing/route_result.dart';
+import 'package:ecoruta/widgets/activity_type_card.dart';
+import 'package:ecoruta/widgets/points_preview.dart';
+import 'package:ecoruta/widgets/preference_card.dart';
+import 'package:ecoruta/widgets/route_result_card.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_map/flutter_map.dart';
+import 'package:geolocator/geolocator.dart';
 import 'package:latlong2/latlong.dart';
-
-enum _RoutePreference { masCorta, masRapida, masDesafiante }
+import 'package:provider/provider.dart';
 
 class GenerateTab extends StatefulWidget {
   const GenerateTab({super.key});
@@ -16,490 +24,464 @@ class GenerateTab extends StatefulWidget {
 class _GenerateTabState extends State<GenerateTab> {
   static const _primaryColor = Color(0xFF012D1D);
   static const _primaryFixed = Color(0xFFC1ECD4);
-  static const _orangeColor = Color(0xFFFF7043);
-  static const _surfaceHigh = Color(0xFFE7E8E9);
-  static const _surfaceHighest = Color(0xFFE1E3E4);
   static const _surfaceLow = Color(0xFFF3F4F5);
-  static const _secondaryColor = Color(0xFF2C694E);
   static const _secondaryContainer = Color(0xFFAEEECB);
   static const _tertiaryContainer = Color(0xFF721D00);
   static const _tertiaryFixed = Color(0xFFFFB59F);
 
   final MapController _mapController = MapController();
 
-  _RoutePreference _selectedPreference = _RoutePreference.masRapida;
-  late List<_GeneratedRoute> _generatedRoutes;
-
-  bool _isReversed = false;
+  static const _selectedPreference = RoutingPreference.masCorta;
+  RouteProfile _selectedProfile = RouteProfile.hiking;
+  LatLng? _startPoint;
+  LatLng? _destinationPoint;
+  LatLng? _currentLocation;
+  String _startLabel = 'Cargando ubicacion actual...';
+  String _destinationLabel = 'Pendiente de seleccionar';
+  bool _isLoadingCurrentLocation = true;
   bool _hasGenerated = false;
-
-  static const LatLng _startPoint = LatLng(9.9348, -84.0875);
-  static const LatLng _destinationPoint = LatLng(10.0247, -84.1021);
 
   @override
   void initState() {
     super.initState();
-    _generatedRoutes = _routesForPreference(_selectedPreference);
-    _hasGenerated = true;
+    _initCurrentLocation();
   }
 
-  void _swapLocations() {
-    setState(() => _isReversed = !_isReversed);
-  }
+  Future<void> _initCurrentLocation() async {
+    try {
+      LocationPermission permission = await Geolocator.checkPermission();
+      if (permission == LocationPermission.denied) {
+        permission = await Geolocator.requestPermission();
+      }
 
-  void _generateRoutes() {
-    setState(() {
-      _generatedRoutes = _routesForPreference(_selectedPreference);
-      _hasGenerated = true;
-    });
-  }
+      if (permission == LocationPermission.deniedForever ||
+          permission == LocationPermission.denied) {
+        if (!mounted) return;
+        setState(() {
+          _isLoadingCurrentLocation = false;
+          _startLabel = 'Ubicacion actual no disponible';
+        });
+        return;
+      }
 
-  List<_GeneratedRoute> _routesForPreference(_RoutePreference preference) {
-    switch (preference) {
-      case _RoutePreference.masCorta:
-        return const [
-          _GeneratedRoute(
-            title: 'Ruta de los Manantiales',
-            distance: '5.4 km',
-            duration: '1h 30m',
-            elevationGain: '+110m',
-            accentColor: _secondaryContainer,
-            icon: Icons.water_drop_rounded,
-          ),
-          _GeneratedRoute(
-            title: 'Sendero Verde',
-            distance: '6.1 km',
-            duration: '1h 48m',
-            elevationGain: '+150m',
-            accentColor: _primaryFixed,
-            icon: Icons.park_rounded,
-          ),
-          _GeneratedRoute(
-            title: 'Anillo Boscoso',
-            distance: '7.2 km',
-            duration: '2h 05m',
-            elevationGain: '+185m',
-            accentColor: _surfaceHighest,
-            icon: Icons.forest_rounded,
-          ),
-        ];
-      case _RoutePreference.masRapida:
-        return const [
-          _GeneratedRoute(
-            title: 'Senda del Bosque',
-            distance: '8.2 km',
-            duration: '2h 15m',
-            elevationGain: '+240m',
-            accentColor: _primaryFixed,
-            icon: Icons.route_rounded,
-          ),
-          _GeneratedRoute(
-            title: 'Cima Volcánica',
-            distance: '14.5 km',
-            duration: '4h 45m',
-            elevationGain: '+850m',
-            badge: 'VISTA ÉPICA',
-            accentColor: _tertiaryFixed,
-            icon: Icons.local_fire_department_rounded,
-            isHighlighted: true,
-          ),
-          _GeneratedRoute(
-            title: 'Ruta del Mirador',
-            distance: '9.1 km',
-            duration: '2h 40m',
-            elevationGain: '+280m',
-            accentColor: _secondaryContainer,
-            icon: Icons.landscape_rounded,
-          ),
-        ];
-      case _RoutePreference.masDesafiante:
-        return const [
-          _GeneratedRoute(
-            title: 'Cresta del Explorador',
-            distance: '16.8 km',
-            duration: '5h 20m',
-            elevationGain: '+910m',
-            badge: 'ALTA EXIGENCIA',
-            accentColor: _tertiaryFixed,
-            icon: Icons.terrain_rounded,
-            isHighlighted: true,
-          ),
-          _GeneratedRoute(
-            title: 'Ascenso del Guardabosque',
-            distance: '13.2 km',
-            duration: '4h 10m',
-            elevationGain: '+760m',
-            accentColor: _surfaceHighest,
-            icon: Icons.hiking_rounded,
-          ),
-          _GeneratedRoute(
-            title: 'Travesía Niebla Alta',
-            distance: '11.7 km',
-            duration: '3h 55m',
-            elevationGain: '+640m',
-            accentColor: _primaryFixed,
-            icon: Icons.filter_hdr_rounded,
-          ),
-        ];
+      final position = await Geolocator.getCurrentPosition();
+      final currentPoint = LatLng(position.latitude, position.longitude);
+
+      if (!mounted) return;
+      setState(() {
+        _currentLocation = currentPoint;
+        _startPoint = currentPoint;
+        _startLabel = _formatCoordinates(currentPoint);
+        _isLoadingCurrentLocation = false;
+      });
+      _syncPreviewMap();
+    } catch (_) {
+      if (!mounted) return;
+      setState(() {
+        _isLoadingCurrentLocation = false;
+        _startLabel = 'Ubicacion actual no disponible';
+      });
     }
   }
 
-  @override
-  Widget build(BuildContext context) {
-    final startLabel = _isReversed ? 'Volcán Poás, CR' : 'San José, CR';
-    final destinationLabel = _isReversed
-        ? 'San José, CR'
-        : 'Volcán Poás, CR';
-
-    return ListView(
-      padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 20),
-      children: [
-        _MapHeroCard(
-          mapController: _mapController,
-          startPoint: _isReversed ? _destinationPoint : _startPoint,
-          destinationPoint: _isReversed ? _startPoint : _destinationPoint,
-          startLabel: startLabel,
-          destinationLabel: destinationLabel,
-          onSwap: _swapLocations,
-        ),
-        const SizedBox(height: 28),
-        const _SectionTitle(title: 'Preferencia de Ruta'),
-        const SizedBox(height: 14),
-        _RoutePreferenceCard(
-          title: 'Más Corta',
-          subtitle: '12.4 km total',
-          description:
-              'Prioriza la distancia mínima sobre el terreno o elevación.',
-          icon: Icons.straighten_rounded,
-          accentColor: _primaryColor,
-          backgroundColor: _surfaceLow,
-          selected: _selectedPreference == _RoutePreference.masCorta,
-          onTap: () {
-            setState(() => _selectedPreference = _RoutePreference.masCorta);
-          },
-        ),
-        const SizedBox(height: 12),
-        _RoutePreferenceCard(
-          title: 'Más Rápida',
-          subtitle: '3h 15m est.',
-          description:
-              'Optimiza para senderos de alto flujo y menor dificultad técnica.',
-          icon: Icons.bolt_rounded,
-          accentColor: _primaryColor,
-          backgroundColor: _primaryFixed,
-          badgeText: 'Recomendado',
-          selected: _selectedPreference == _RoutePreference.masRapida,
-          onTap: () {
-            setState(() => _selectedPreference = _RoutePreference.masRapida);
-          },
-        ),
-        const SizedBox(height: 12),
-        _RoutePreferenceCard(
-          title: 'Más Desafiante',
-          subtitle: 'Desnivel +800m',
-          description:
-              'Busca los picos más altos y las pendientes más técnicas del área.',
-          icon: Icons.terrain_rounded,
-          accentColor: _tertiaryContainer,
-          backgroundColor: _tertiaryFixed,
-          selected: _selectedPreference == _RoutePreference.masDesafiante,
-          onTap: () {
-            setState(
-              () => _selectedPreference = _RoutePreference.masDesafiante,
-            );
-          },
-        ),
-        const SizedBox(height: 24),
-        FilledButton(
-          onPressed: _generateRoutes,
-          style: FilledButton.styleFrom(
-            backgroundColor: _primaryColor,
-            foregroundColor: Colors.white,
-            elevation: 0,
-            padding: const EdgeInsets.symmetric(vertical: 18),
-            shape: RoundedRectangleBorder(
-              borderRadius: BorderRadius.circular(28),
-            ),
-            shadowColor: _primaryColor.withOpacity(0.22),
-          ),
-          child: const Row(
-            mainAxisAlignment: MainAxisAlignment.center,
-            children: [
-              Icon(Icons.bolt_rounded, size: 24),
-              SizedBox(width: 10),
-              Text(
-                'Generar Ruta',
-                style: TextStyle(fontSize: 17, fontWeight: FontWeight.w800),
-              ),
-            ],
-          ),
-        ),
-        const SizedBox(height: 28),
-        const _SectionTitle(title: 'Rutas Generadas'),
-        const SizedBox(height: 4),
-        Text(
-          _hasGenerated
-              ? 'Basado en tus preferencias actuales'
-              : 'Aún no se han generado sugerencias',
-          style: const TextStyle(
-            fontSize: 14,
-            color: Colors.grey,
-            fontWeight: FontWeight.w500,
-          ),
-        ),
-        const SizedBox(height: 16),
-        ..._generatedRoutes.map(
-          (route) => Padding(
-            padding: const EdgeInsets.only(bottom: 14),
-            child: _GeneratedRouteCard(route: route),
-          ),
-        ),
-      ],
-    );
+  void _swapLocations() {
+    setState(() {
+      final previousStartPoint = _startPoint;
+      final previousStartLabel = _startLabel;
+      _startPoint = _destinationPoint;
+      _startLabel = _destinationLabel;
+      _destinationPoint = previousStartPoint;
+      _destinationLabel = previousStartLabel;
+    });
+    _syncPreviewMap();
   }
-}
 
-class _MapHeroCard extends StatelessWidget {
-  const _MapHeroCard({
-    required this.mapController,
-    required this.startPoint,
-    required this.destinationPoint,
-    required this.startLabel,
-    required this.destinationLabel,
-    required this.onSwap,
-  });
-
-  static const _primaryColor = Color(0xFF012D1D);
-  static const _primaryFixed = Color(0xFFC1ECD4);
-  static const _surfaceColor = Color(0xFFF8F9FA);
-  static const _surfaceLow = Color(0xFFF3F4F5);
-  static const _surfaceHighest = Color(0xFFE1E3E4);
-  static const _tertiaryColor = Color(0xFF721D00);
-  static const _tertiaryFixed = Color(0xFFFFB59F);
-
-  final MapController mapController;
-  final LatLng startPoint;
-  final LatLng destinationPoint;
-  final String startLabel;
-  final String destinationLabel;
-  final VoidCallback onSwap;
-
-  @override
-  Widget build(BuildContext context) {
-    final center = LatLng(
-      (startPoint.latitude + destinationPoint.latitude) / 2,
-      (startPoint.longitude + destinationPoint.longitude) / 2,
-    );
-
-    return SizedBox(
-      height: 320,
-      child: Stack(
-        clipBehavior: Clip.none,
-        children: [
-          ClipRRect(
-            borderRadius: BorderRadius.circular(32),
-            child: SizedBox.expand(
-              child: Stack(
-                children: [
-                  FlutterMap(
-                    mapController: mapController,
-                    options: MapOptions(
-                      initialCenter: center,
-                      initialZoom: 11.5,
-                    ),
-                    children: [
-                      TileLayer(
-                        urlTemplate:
-                            'https://tile.openstreetmap.org/{z}/{x}/{y}.png',
-                        userAgentPackageName: 'com.example.lab2_moviles',
-                      ),
-                      Container(
-                        color: _primaryColor.withOpacity(0.08),
-                      ),
-                      PolylineLayer(
-                        polylines: [
-                          Polyline(
-                            points: [startPoint, destinationPoint],
-                            color: _primaryColor,
-                            strokeWidth: 4,
-                            pattern: StrokePattern.dashed(
-                              segments: [8, 8],
-                            ),
-                          ),
-                        ],
-                      ),
-                      MarkerLayer(
-                        markers: [
-                          Marker(
-                            point: startPoint,
-                            width: 84,
-                            height: 52,
-                            alignment: Alignment.topCenter,
-                            child: const _StartMarker(),
-                          ),
-                          Marker(
-                            point: destinationPoint,
-                            width: 44,
-                            height: 44,
-                            alignment: Alignment.center,
-                            child: const _DestinationMarker(),
-                          ),
-                        ],
-                      ),
-                    ],
-                  ),
-                  Positioned(
-                    left: 0,
-                    right: 0,
-                    bottom: 0,
-                    child: IgnorePointer(
-                      child: Container(
-                        height: 120,
-                        decoration: const BoxDecoration(
-                          gradient: LinearGradient(
-                            begin: Alignment.topCenter,
-                            end: Alignment.bottomCenter,
-                            colors: [
-                              Color.fromRGBO(248, 249, 250, 0),
-                              _surfaceColor,
-                            ],
-                            stops: [0, 0.92],
-                          ),
-                        ),
-                      ),
-                    ),
-                  ),
-                ],
-              ),
-            ),
-          ),
-          Positioned(
-            left: 18,
-            right: 18,
-            bottom: -30,
-            child: ClipRRect(
-              borderRadius: BorderRadius.circular(24),
-              child: BackdropFilter(
-                filter: ImageFilter.blur(sigmaX: 12, sigmaY: 12),
-                child: Container(
-                  padding: const EdgeInsets.all(16),
-                  decoration: BoxDecoration(
-                    color: Colors.white.withOpacity(0.72),
-                    borderRadius: BorderRadius.circular(24),
-                    border: Border.all(color: Colors.white.withOpacity(0.4)),
-                    boxShadow: [
-                      BoxShadow(
-                        color: Colors.black.withOpacity(0.08),
-                        blurRadius: 20,
-                        offset: const Offset(0, 8),
-                      ),
-                    ],
-                  ),
-                  child: Row(
-                    children: [
-                      Expanded(
-                        child: Column(
-                          children: [
-                            _LocationRow(
-                              label: 'Inicio',
-                              value: startLabel,
-                              icon: Icons.circle,
-                              iconColor: _secondaryColor(startLabel),
-                            ),
-                            const SizedBox(height: 14),
-                            _LocationRow(
-                              label: 'Destino',
-                              value: destinationLabel,
-                              icon: Icons.location_on_rounded,
-                              iconColor: _tertiaryFixed,
-                            ),
-                          ],
-                        ),
-                      ),
-                      const SizedBox(width: 12),
-                      InkWell(
-                        onTap: onSwap,
-                        borderRadius: BorderRadius.circular(24),
-                        child: Ink(
-                          width: 48,
-                          height: 48,
-                          decoration: const BoxDecoration(
-                            color: _primaryColor,
-                            shape: BoxShape.circle,
-                          ),
-                          child: const Icon(
-                            Icons.swap_vert_rounded,
-                            color: Colors.white,
-                          ),
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
-              ),
-            ),
-          ),
-          Positioned(
-            left: 18,
-            top: 18,
-            child: Container(
-              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-              decoration: BoxDecoration(
-                color: Colors.white.withOpacity(0.9),
-                borderRadius: BorderRadius.circular(18),
-                boxShadow: [
-                  BoxShadow(
-                    color: Colors.black.withOpacity(0.05),
-                    blurRadius: 14,
-                  ),
-                ],
-              ),
-              child: const Row(
-                children: [
-                  Icon(
-                    Icons.auto_awesome_rounded,
-                    size: 16,
-                    color: _primaryColor,
-                  ),
-                  SizedBox(width: 6),
-                  Text(
-                    'TrailAI Suggest',
-                    style: TextStyle(
-                      fontSize: 11,
-                      fontWeight: FontWeight.w800,
-                      color: _primaryColor,
-                    ),
-                  ),
-                ],
-              ),
-            ),
-          ),
-          Positioned(
-            right: 18,
-            top: 18,
-            child: Container(
-              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-              decoration: BoxDecoration(
-                color: _surfaceLow.withOpacity(0.9),
-                borderRadius: BorderRadius.circular(18),
-                border: Border.all(color: _surfaceHighest),
-              ),
-              child: const Text(
-                'Ruta optimizada',
-                style: TextStyle(
-                  fontSize: 11,
-                  fontWeight: FontWeight.w700,
-                  color: _tertiaryColor,
-                ),
-              ),
-            ),
-          ),
-        ],
+  Future<void> _openPointsPicker() async {
+    final result = await Navigator.of(context).push<PointsSelectionResult>(
+      MaterialPageRoute(
+        builder: (_) => PickerMapScreen(
+          initialStartPoint: _startPoint,
+          initialDestinationPoint: _destinationPoint,
+          currentLocation: _currentLocation,
+        ),
       ),
     );
+
+    if (result == null || !mounted) return;
+
+    setState(() {
+      _startPoint = result.startPoint;
+      _destinationPoint = result.destinationPoint;
+      _startLabel = result.startLabel;
+      _destinationLabel = result.destinationLabel;
+    });
+    _syncPreviewMap();
   }
 
-  Color _secondaryColor(String _) => _primaryFixed;
+  Future<void> _generateRoutes() async {
+    if (_startPoint == null || _destinationPoint == null) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Selecciona un punto de inicio y un destino.'),
+        ),
+      );
+      return;
+    }
+
+    final straightLineDistanceKm = _straightLineDistanceKm(
+      _startPoint!,
+      _destinationPoint!,
+    );
+    final maxDistanceKm = _selectedProfile.maxRecommendedDistanceKm;
+
+    if (straightLineDistanceKm > maxDistanceKm) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(
+            _distanceLimitMessage(
+              profile: _selectedProfile,
+              maxDistanceKm: maxDistanceKm,
+            ),
+          ),
+        ),
+      );
+      return;
+    }
+
+    final provider = context.read<ExploreProvider>();
+    provider.setProfile(_selectedProfile);
+
+    setState(() => _hasGenerated = true);
+
+    await provider.generateRoutes(
+      startLat: _startPoint!.latitude,
+      startLon: _startPoint!.longitude,
+      endLat: _destinationPoint!.latitude,
+      endLon: _destinationPoint!.longitude,
+    );
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final previewStartLabel = _isLoadingCurrentLocation
+        ? 'Cargando ubicacion actual...'
+        : _startLabel;
+
+    return Consumer<ExploreProvider>(
+      builder: (context, exploreProvider, _) {
+        final selectedRoute = exploreProvider.routes[_selectedPreference];
+
+        return ListView(
+          padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 20),
+          children: [
+            PointsPreview(
+              mapController: _mapController,
+              startPoint: _startPoint,
+              destinationPoint: _destinationPoint,
+              startLabel: previewStartLabel,
+              destinationLabel: _destinationLabel,
+              onSwap: _swapLocations,
+              onSelectPoints: _openPointsPicker,
+            ),
+            const SizedBox(height: 28),
+            const _SectionTitle(title: 'Preferencia de Ruta'),
+            const SizedBox(height: 14),
+            PreferenceCard(
+              title: 'Mas Corta',
+              subtitle: 'Minimiza la distancia total',
+              description:
+                  'Prioriza el recorrido de menor distancia entre los puntos seleccionados.',
+              icon: Icons.straighten_rounded,
+              accentColor: _primaryColor,
+              backgroundColor: _surfaceLow,
+              selected: true,
+              badgeText: 'ACTIVA',
+              onTap: () {},
+            ),
+            const SizedBox(height: 12),
+            PreferenceCard(
+              title: 'Mas Rapida',
+              subtitle: 'Minimiza el tiempo estimado',
+              description:
+                  'La dejaremos fuera del flujo principal mientras estabilizamos el grafo base por actividad.',
+              icon: Icons.bolt_rounded,
+              accentColor: _primaryColor,
+              backgroundColor: _primaryFixed,
+              badgeText: 'PROXIMAMENTE',
+              selected: false,
+              onTap: () {},
+            ),
+            const SizedBox(height: 12),
+            PreferenceCard(
+              title: 'Mas Desafiante',
+              subtitle: 'Favorece el desnivel positivo',
+              description:
+                  'Volvera despues de validar que la ruta mas corta use un grafo amplio y conectado.',
+              icon: Icons.terrain_rounded,
+              accentColor: _tertiaryContainer,
+              backgroundColor: _tertiaryFixed,
+              badgeText: 'PROXIMAMENTE',
+              selected: false,
+              onTap: () {},
+            ),
+            const SizedBox(height: 24),
+            const _SectionTitle(title: 'Tipo de actividad'),
+            const SizedBox(height: 14),
+            SingleChildScrollView(
+              scrollDirection: Axis.horizontal,
+              child: Row(
+                children: [
+                  ActivityTypeCard(
+                    icon: Icons.directions_bike_rounded,
+                    label: 'Ciclismo',
+                    selected: _selectedProfile == RouteProfile.cycling,
+                    onTap: () {
+                      setState(() => _selectedProfile = RouteProfile.cycling);
+                    },
+                  ),
+                  const SizedBox(width: 14),
+                  ActivityTypeCard(
+                    icon: Icons.hiking_rounded,
+                    label: 'Senderismo',
+                    selected: _selectedProfile == RouteProfile.hiking,
+                    onTap: () {
+                      setState(() => _selectedProfile = RouteProfile.hiking);
+                    },
+                  ),
+                  const SizedBox(width: 14),
+                  ActivityTypeCard(
+                    icon: Icons.directions_run_rounded,
+                    label: 'Running',
+                    selected: _selectedProfile == RouteProfile.running,
+                    onTap: () {
+                      setState(() => _selectedProfile = RouteProfile.running);
+                    },
+                  ),
+                ],
+              ),
+            ),
+            const SizedBox(height: 4),
+            const _ScrollHint(),
+            const SizedBox(height: 20),
+            FilledButton(
+              onPressed: exploreProvider.isLoading ? null : _generateRoutes,
+              style: FilledButton.styleFrom(
+                backgroundColor: _primaryColor,
+                foregroundColor: Colors.white,
+                elevation: 0,
+                padding: const EdgeInsets.symmetric(vertical: 18),
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(28),
+                ),
+                shadowColor: _primaryColor.withValues(alpha: 0.22),
+              ),
+              child: Row(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  if (exploreProvider.isLoading)
+                    const SizedBox(
+                      width: 20,
+                      height: 20,
+                      child: CircularProgressIndicator(
+                        strokeWidth: 2.2,
+                        color: Colors.white,
+                      ),
+                    )
+                  else
+                    const Icon(Icons.bolt_rounded, size: 24),
+                  const SizedBox(width: 10),
+                  Text(
+                    exploreProvider.isLoading
+                        ? 'Generando rutas...'
+                        : 'Generar Ruta',
+                    style: const TextStyle(
+                      fontSize: 17,
+                      fontWeight: FontWeight.w800,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+            const SizedBox(height: 28),
+            const _SectionTitle(title: 'Rutas Generadas'),
+            const SizedBox(height: 4),
+            Text(
+              _resultSummaryText(exploreProvider, selectedRoute),
+              style: const TextStyle(
+                fontSize: 14,
+                color: Colors.grey,
+                fontWeight: FontWeight.w500,
+              ),
+            ),
+            const SizedBox(height: 16),
+            const SizedBox(height: 8),
+            if (exploreProvider.errorMessage != null && _hasGenerated)
+              _InfoCard(
+                message: exploreProvider.errorMessage!,
+                icon: Icons.error_outline_rounded,
+                iconColor: Colors.redAccent,
+              )
+            else if (!_hasGenerated)
+              const _InfoCard(
+                message:
+                    'Selecciona la actividad, el origen y el destino para calcular la ruta mas corta.',
+                icon: Icons.route_rounded,
+                iconColor: _primaryColor,
+              )
+            else if (exploreProvider.isLoading)
+              const _InfoCard(
+                message: 'Calculando la ruta mas corta...',
+                icon: Icons.sync_rounded,
+                iconColor: _primaryColor,
+              )
+            else if (selectedRoute == null)
+              const _InfoCard(
+                message:
+                    'No se encontro una ruta para esta preferencia con los puntos seleccionados.',
+                icon: Icons.alt_route_rounded,
+                iconColor: _primaryColor,
+              )
+            else
+              RouteResultCard(
+                title: _titleForRoute(_selectedProfile, _selectedPreference),
+                distance: selectedRoute.formattedDistance,
+                duration: selectedRoute.formattedDuration,
+                elevationGain: selectedRoute.formattedElevationGain,
+                accentColor: _accentForPreference(_selectedPreference),
+                icon: _iconForPreference(_selectedPreference),
+                badge: _badgeForRoute(selectedRoute),
+                isHighlighted: false,
+                buttonText: 'Ver trazado',
+                onPressed: () {
+                  Navigator.of(context).push(
+                    MaterialPageRoute(
+                      builder: (_) => RoutePreviewScreen(
+                        title: _titleForRoute(
+                          _selectedProfile,
+                          _selectedPreference,
+                        ),
+                        route: selectedRoute,
+                      ),
+                    ),
+                  );
+                },
+              ),
+          ],
+        );
+      },
+    );
+  }
+
+  String _resultSummaryText(
+    ExploreProvider provider,
+    RouteResult? selectedRoute,
+  ) {
+    if (!_hasGenerated) {
+      return 'Aun no se han generado sugerencias';
+    }
+    if (provider.isLoading) {
+      return 'Calculando ruta mas corta para ${_activityLabel(_selectedProfile).toLowerCase()}';
+    }
+    if (provider.errorMessage != null) {
+      return 'No se pudo generar la ruta mas corta con los puntos elegidos';
+    }
+    if (selectedRoute == null) {
+      return 'No hubo resultado para la ruta mas corta';
+    }
+    return 'Resultado real de la ruta mas corta para ${_activityLabel(_selectedProfile).toLowerCase()}';
+  }
+
+  String _activityLabel(RouteProfile profile) {
+    switch (profile) {
+      case RouteProfile.cycling:
+        return 'Ciclismo';
+      case RouteProfile.hiking:
+        return 'Senderismo';
+      case RouteProfile.running:
+        return 'Running';
+    }
+  }
+
+  String _titleForRoute(
+    RouteProfile profile,
+    RoutingPreference preference,
+  ) {
+    final activity = _activityLabel(profile);
+    switch (preference) {
+      case RoutingPreference.masCorta:
+        return '$activity - Ruta mas corta';
+      case RoutingPreference.masRapida:
+        return '$activity - Ruta mas rapida';
+      case RoutingPreference.masDesafiante:
+        return '$activity - Ruta mas desafiante';
+    }
+  }
+
+  String? _badgeForRoute(RouteResult route) {
+    if (route.totalDistanceMeters > 0) {
+      return 'MAS CORTA';
+    }
+    return null;
+  }
+
+  Color _accentForPreference(RoutingPreference preference) {
+    switch (preference) {
+      case RoutingPreference.masCorta:
+        return _secondaryContainer;
+      case RoutingPreference.masRapida:
+        return _primaryFixed;
+      case RoutingPreference.masDesafiante:
+        return _tertiaryFixed;
+    }
+  }
+
+  IconData _iconForPreference(RoutingPreference preference) {
+    switch (preference) {
+      case RoutingPreference.masCorta:
+        return Icons.straighten_rounded;
+      case RoutingPreference.masRapida:
+        return Icons.bolt_rounded;
+      case RoutingPreference.masDesafiante:
+        return Icons.terrain_rounded;
+    }
+  }
+
+  String _formatCoordinates(LatLng point) {
+    return '${point.latitude.toStringAsFixed(4)}, ${point.longitude.toStringAsFixed(4)}';
+  }
+
+  double _straightLineDistanceKm(LatLng start, LatLng end) {
+    final distanceMeters = Geolocator.distanceBetween(
+      start.latitude,
+      start.longitude,
+      end.latitude,
+      end.longitude,
+    );
+    return distanceMeters / 1000;
+  }
+
+  String _distanceLimitMessage({
+    required RouteProfile profile,
+    required double maxDistanceKm,
+  }) {
+    final activity = _activityLabel(profile).toLowerCase();
+    return 'Para $activity, el origen y destino no deben superar ${maxDistanceKm.toStringAsFixed(0)} km en linea recta.';
+  }
+
+  void _syncPreviewMap() {
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      final center = _startPoint != null && _destinationPoint != null
+          ? LatLng(
+              (_startPoint!.latitude + _destinationPoint!.latitude) / 2,
+              (_startPoint!.longitude + _destinationPoint!.longitude) / 2,
+            )
+          : _startPoint ?? _destinationPoint;
+
+      if (center != null) {
+        _mapController.move(center, 11.5);
+      }
+    });
+  }
 }
 
 class _SectionTitle extends StatelessWidget {
@@ -521,543 +503,66 @@ class _SectionTitle extends StatelessWidget {
   }
 }
 
-class _RoutePreferenceCard extends StatelessWidget {
-  const _RoutePreferenceCard({
-    required this.title,
-    required this.subtitle,
-    required this.description,
-    required this.icon,
-    required this.accentColor,
-    required this.backgroundColor,
-    required this.selected,
-    required this.onTap,
-    this.badgeText,
-  });
-
-  static const _primaryColor = Color(0xFF012D1D);
-
-  final String title;
-  final String subtitle;
-  final String description;
-  final IconData icon;
-  final Color accentColor;
-  final Color backgroundColor;
-  final bool selected;
-  final VoidCallback onTap;
-  final String? badgeText;
+class _ScrollHint extends StatelessWidget {
+  const _ScrollHint();
 
   @override
   Widget build(BuildContext context) {
-    return Material(
-      color: Colors.transparent,
-      child: InkWell(
-        onTap: onTap,
-        borderRadius: BorderRadius.circular(28),
-        child: Ink(
-          decoration: BoxDecoration(
-            color: Colors.white,
-            borderRadius: BorderRadius.circular(28),
-            border: Border.all(
-              color: selected ? _primaryColor : Colors.grey.shade200,
-              width: selected ? 2 : 1.2,
-            ),
-            boxShadow: [
-              BoxShadow(
-                color: Colors.black.withOpacity(selected ? 0.08 : 0.04),
-                blurRadius: selected ? 20 : 10,
-                offset: const Offset(0, 6),
-              ),
-            ],
-          ),
-          child: Stack(
-            children: [
-              if (badgeText != null)
-                Positioned(
-                  right: 0,
-                  top: 0,
-                  child: Container(
-                    padding: const EdgeInsets.symmetric(
-                      horizontal: 12,
-                      vertical: 6,
-                    ),
-                    decoration: const BoxDecoration(
-                      color: _primaryColor,
-                      borderRadius: BorderRadius.only(
-                        topRight: Radius.circular(26),
-                        bottomLeft: Radius.circular(18),
-                      ),
-                    ),
-                    child: Text(
-                      badgeText!,
-                      style: const TextStyle(
-                        color: Colors.white,
-                        fontSize: 9,
-                        fontWeight: FontWeight.w900,
-                        letterSpacing: 1.1,
-                      ),
-                    ),
-                  ),
-                ),
-              Padding(
-                padding: EdgeInsets.fromLTRB(
-                  18,
-                  18,
-                  18,
-                  badgeText != null ? 18 : 16,
-                ),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Row(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Container(
-                          width: 52,
-                          height: 52,
-                          decoration: BoxDecoration(
-                            color: selected ? accentColor : backgroundColor,
-                            borderRadius: BorderRadius.circular(16),
-                          ),
-                          child: Icon(
-                            icon,
-                            color: selected ? Colors.white : accentColor,
-                            size: 28,
-                          ),
-                        ),
-                        const SizedBox(width: 14),
-                        Expanded(
-                          child: Padding(
-                            padding: const EdgeInsets.only(top: 2),
-                            child: Column(
-                              crossAxisAlignment: CrossAxisAlignment.start,
-                              children: [
-                                Text(
-                                  title,
-                                  style: const TextStyle(
-                                    fontSize: 20,
-                                    fontWeight: FontWeight.w800,
-                                    color: _primaryColor,
-                                    letterSpacing: -0.4,
-                                  ),
-                                ),
-                                const SizedBox(height: 4),
-                                Text(
-                                  subtitle,
-                                  style: TextStyle(
-                                    fontSize: 12,
-                                    fontWeight: FontWeight.w700,
-                                    color: selected
-                                        ? _primaryColor
-                                        : Colors.grey.shade600,
-                                  ),
-                                ),
-                              ],
-                            ),
-                          ),
-                        ),
-                      ],
-                    ),
-                    const SizedBox(height: 16),
-                    Container(
-                      width: double.infinity,
-                      height: 1,
-                      color: Colors.grey.shade100,
-                    ),
-                    const SizedBox(height: 12),
-                    Text(
-                      description,
-                      style: TextStyle(
-                        fontSize: 12,
-                        height: 1.45,
-                        color: Colors.grey.shade600,
-                        fontWeight: FontWeight.w500,
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-            ],
+    return Row(
+      mainAxisAlignment: MainAxisAlignment.end,
+      children: const [
+        Text(
+          'Desliza para ver mas',
+          style: TextStyle(
+            fontSize: 11,
+            fontWeight: FontWeight.w700,
+            color: Colors.grey,
           ),
         ),
-      ),
+        SizedBox(width: 6),
+        Icon(Icons.arrow_forward_rounded, size: 14, color: Colors.grey),
+      ],
     );
   }
 }
 
-class _GeneratedRouteCard extends StatelessWidget {
-  const _GeneratedRouteCard({required this.route});
-
-  static const _primaryColor = Color(0xFF012D1D);
-  static const _secondaryContainer = Color(0xFFAEEECB);
-  static const _surfaceLowest = Colors.white;
-
-  final _GeneratedRoute route;
-
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      decoration: BoxDecoration(
-        color: _surfaceLowest,
-        borderRadius: BorderRadius.circular(30),
-        border: Border.all(color: Colors.grey.shade100),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withOpacity(0.04),
-            blurRadius: 14,
-            offset: const Offset(0, 6),
-          ),
-        ],
-      ),
-      child: Stack(
-        children: [
-          if (route.badge != null)
-            Positioned(
-              right: 0,
-              top: 0,
-              child: Container(
-                padding: const EdgeInsets.symmetric(
-                  horizontal: 14,
-                  vertical: 7,
-                ),
-                decoration: BoxDecoration(
-                  color: route.isHighlighted
-                      ? const Color(0xFFFF825C)
-                      : _primaryColor,
-                  borderRadius: const BorderRadius.only(
-                    topRight: Radius.circular(28),
-                    bottomLeft: Radius.circular(22),
-                  ),
-                ),
-                child: Text(
-                  route.badge!,
-                  style: TextStyle(
-                    color: route.isHighlighted
-                        ? const Color(0xFF4C1000)
-                        : Colors.white,
-                    fontSize: 10,
-                    fontWeight: FontWeight.w900,
-                    letterSpacing: 0.8,
-                  ),
-                ),
-              ),
-            ),
-          Padding(
-            padding: const EdgeInsets.all(16),
-            child: Column(
-              children: [
-                Row(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Container(
-                      width: 96,
-                      height: 96,
-                      decoration: BoxDecoration(
-                        borderRadius: BorderRadius.circular(22),
-                        gradient: LinearGradient(
-                          begin: Alignment.topLeft,
-                          end: Alignment.bottomRight,
-                          colors: [
-                            route.accentColor,
-                            route.accentColor.withOpacity(0.55),
-                          ],
-                        ),
-                      ),
-                      child: Stack(
-                        children: [
-                          Positioned.fill(
-                            child: DecoratedBox(
-                              decoration: BoxDecoration(
-                                borderRadius: BorderRadius.circular(22),
-                                border: Border.all(
-                                  color: Colors.white.withOpacity(0.35),
-                                ),
-                              ),
-                            ),
-                          ),
-                          const Positioned(
-                            left: 12,
-                            top: 12,
-                            child: Icon(
-                              Icons.map_rounded,
-                              size: 20,
-                              color: _primaryColor,
-                            ),
-                          ),
-                          Center(
-                            child: Icon(
-                              route.icon,
-                              size: 34,
-                              color: _primaryColor,
-                            ),
-                          ),
-                        ],
-                      ),
-                    ),
-                    const SizedBox(width: 14),
-                    Expanded(
-                      child: Padding(
-                        padding: const EdgeInsets.only(top: 4),
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            Text(
-                              route.title,
-                              style: const TextStyle(
-                                fontSize: 20,
-                                fontWeight: FontWeight.w800,
-                                color: _primaryColor,
-                                letterSpacing: -0.4,
-                              ),
-                            ),
-                            const SizedBox(height: 8),
-                            Wrap(
-                              spacing: 14,
-                              runSpacing: 8,
-                              children: [
-                                _MetricChip(
-                                  icon: Icons.straighten_rounded,
-                                  value: route.distance,
-                                  valueColor: Colors.grey.shade700,
-                                ),
-                                _MetricChip(
-                                  icon: Icons.schedule_rounded,
-                                  value: route.duration,
-                                  valueColor: Colors.grey.shade700,
-                                ),
-                                _MetricChip(
-                                  icon: Icons.trending_up_rounded,
-                                  value: route.elevationGain,
-                                  iconColor: const Color(0xFF721D00),
-                                  valueColor: const Color(0xFF721D00),
-                                  emphasized: true,
-                                ),
-                              ],
-                            ),
-                          ],
-                        ),
-                      ),
-                    ),
-                  ],
-                ),
-                const SizedBox(height: 14),
-                SizedBox(
-                  width: double.infinity,
-                  child: FilledButton(
-                    onPressed: () {},
-                    style: FilledButton.styleFrom(
-                      backgroundColor: _secondaryContainer,
-                      foregroundColor: _primaryColor,
-                      elevation: 0,
-                      padding: const EdgeInsets.symmetric(vertical: 14),
-                      shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(16),
-                      ),
-                    ),
-                    child: const Text(
-                      'Seleccionar',
-                      style: TextStyle(
-                        fontSize: 14,
-                        fontWeight: FontWeight.w800,
-                      ),
-                    ),
-                  ),
-                ),
-              ],
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-}
-
-class _LocationRow extends StatelessWidget {
-  const _LocationRow({
-    required this.label,
-    required this.value,
+class _InfoCard extends StatelessWidget {
+  const _InfoCard({
+    required this.message,
     required this.icon,
     required this.iconColor,
   });
 
-  final String label;
-  final String value;
+  final String message;
   final IconData icon;
   final Color iconColor;
-
-  @override
-  Widget build(BuildContext context) {
-    return Row(
-      children: [
-        Icon(icon, size: 18, color: iconColor),
-        const SizedBox(width: 10),
-        Expanded(
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Text(
-                label.toUpperCase(),
-                style: const TextStyle(
-                  fontSize: 10,
-                  color: Colors.grey,
-                  fontWeight: FontWeight.w800,
-                  letterSpacing: 1.6,
-                ),
-              ),
-              const SizedBox(height: 2),
-              Text(
-                value,
-                style: TextStyle(
-                  fontSize: 14,
-                  fontWeight: label == 'Destino'
-                      ? FontWeight.w600
-                      : FontWeight.w800,
-                  color: const Color(0xFF191C1D),
-                ),
-              ),
-            ],
-          ),
-        ),
-      ],
-    );
-  }
-}
-
-class _StartMarker extends StatelessWidget {
-  const _StartMarker();
-
-  static const _primaryColor = Color(0xFF012D1D);
-
-  @override
-  Widget build(BuildContext context) {
-    return Column(
-      mainAxisSize: MainAxisSize.min,
-      children: [
-        Container(
-          width: 16,
-          height: 16,
-          decoration: BoxDecoration(
-            color: _primaryColor,
-            shape: BoxShape.circle,
-            border: Border.all(color: Colors.white, width: 3),
-            boxShadow: [
-              BoxShadow(
-                color: _primaryColor.withOpacity(0.25),
-                blurRadius: 10,
-              ),
-            ],
-          ),
-        ),
-        const SizedBox(height: 4),
-        Container(
-          padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
-          decoration: BoxDecoration(
-            color: Colors.white,
-            borderRadius: BorderRadius.circular(10),
-            boxShadow: [
-              BoxShadow(
-                color: Colors.black.withOpacity(0.08),
-                blurRadius: 10,
-              ),
-            ],
-          ),
-          child: const Text(
-            'Inicio',
-            style: TextStyle(
-              fontSize: 10,
-              fontWeight: FontWeight.w800,
-              color: _primaryColor,
-            ),
-          ),
-        ),
-      ],
-    );
-  }
-}
-
-class _DestinationMarker extends StatelessWidget {
-  const _DestinationMarker();
-
-  static const _tertiaryColor = Color(0xFF721D00);
-  static const _tertiaryFixed = Color(0xFFFFB59F);
 
   @override
   Widget build(BuildContext context) {
     return Container(
-      width: 26,
-      height: 26,
+      padding: const EdgeInsets.all(18),
       decoration: BoxDecoration(
-        color: _tertiaryFixed,
-        shape: BoxShape.circle,
-        border: Border.all(color: Colors.white, width: 2),
-        boxShadow: [
-          BoxShadow(
-            color: _tertiaryColor.withOpacity(0.22),
-            blurRadius: 10,
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(24),
+        border: Border.all(color: Colors.grey.shade200),
+      ),
+      child: Row(
+        children: [
+          Icon(icon, color: iconColor),
+          const SizedBox(width: 12),
+          Expanded(
+            child: Text(
+              message,
+              style: const TextStyle(
+                fontSize: 14,
+                fontWeight: FontWeight.w600,
+                color: Color(0xFF191C1D),
+                height: 1.4,
+              ),
+            ),
           ),
         ],
       ),
-      child: const Icon(
-        Icons.location_on_rounded,
-        size: 16,
-        color: _tertiaryColor,
-      ),
     );
   }
-}
-
-class _MetricChip extends StatelessWidget {
-  const _MetricChip({
-    required this.icon,
-    required this.value,
-    required this.valueColor,
-    this.iconColor = Colors.grey,
-    this.emphasized = false,
-  });
-
-  final IconData icon;
-  final String value;
-  final Color iconColor;
-  final Color valueColor;
-  final bool emphasized;
-
-  @override
-  Widget build(BuildContext context) {
-    return Row(
-      mainAxisSize: MainAxisSize.min,
-      children: [
-        Icon(icon, size: 16, color: iconColor),
-        const SizedBox(width: 4),
-        Text(
-          value,
-          style: TextStyle(
-            fontSize: 12,
-            fontWeight: emphasized ? FontWeight.w800 : FontWeight.w600,
-            color: valueColor,
-          ),
-        ),
-      ],
-    );
-  }
-}
-
-class _GeneratedRoute {
-  const _GeneratedRoute({
-    required this.title,
-    required this.distance,
-    required this.duration,
-    required this.elevationGain,
-    required this.accentColor,
-    required this.icon,
-    this.badge,
-    this.isHighlighted = false,
-  });
-
-  final String title;
-  final String distance;
-  final String duration;
-  final String elevationGain;
-  final Color accentColor;
-  final IconData icon;
-  final String? badge;
-  final bool isHighlighted;
 }

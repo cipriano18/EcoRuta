@@ -1,11 +1,13 @@
-import 'dart:async';
-import 'dart:convert';
-import 'dart:io';
-
+import 'package:ecoruta/models/route_profile.dart';
+import 'package:ecoruta/models/stored_route.dart';
+import 'package:ecoruta/screens/explore/route_preview_screen.dart';
+import 'package:ecoruta/screens/picker_map.dart';
+import 'package:ecoruta/services/saved_routes_service.dart';
 import 'package:ecoruta/widgets/activity_type_card.dart';
+import 'package:ecoruta/widgets/points_preview.dart';
 import 'package:ecoruta/widgets/route_result_card.dart';
-import 'package:ecoruta/widgets/suggestion_item.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter_map/flutter_map.dart';
 import 'package:geolocator/geolocator.dart';
 import 'package:latlong2/latlong.dart';
 
@@ -20,14 +22,18 @@ class SearchTab extends StatefulWidget {
 class _SearchTabState extends State<SearchTab> {
   static const _primaryColor = Color(0xFF012D1D);
   static const _surfaceHighest = Color(0xFFE1E3E4);
-  static const _nominatimUserAgent = 'EcoRutaCR/1.0';
 
-  final TextEditingController _searchController = TextEditingController();
-  final FocusNode _searchFocusNode = FocusNode();
-  Timer? _debounce;
-  List<_PlaceSuggestion> _suggestions = [];
+  final MapController _mapController = MapController();
+  final SavedRoutesService _savedRoutesService = SavedRoutesService();
+
   LatLng? _currentLocation;
-  bool _isSearching = false;
+  LatLng? _destinationPoint;
+  String _destinationLabel = 'Pendiente de seleccionar';
+  bool _isLoadingCurrentLocation = true;
+  bool _isSearchingRoutes = false;
+  bool _hasSearchedRoutes = false;
+  String? _searchErrorMessage;
+  List<StoredRoute> _publicRoutes = const [];
 
   int _selectedActivity = 0;
   double _radius = 25;
@@ -38,15 +44,7 @@ class _SearchTabState extends State<SearchTab> {
     _initCurrentLocation();
   }
 
-  @override
-  void dispose() {
-    _debounce?.cancel();
-    _searchController.dispose();
-    _searchFocusNode.dispose();
-    super.dispose();
-  }
-
-  /// Intenta resolver la ubicación actual para ordenar sugerencias cercanas.
+  /// Intenta resolver la ubicación actual para centrar mejor la selección.
   Future<void> _initCurrentLocation() async {
     try {
       LocationPermission permission = await Geolocator.checkPermission();
@@ -56,6 +54,8 @@ class _SearchTabState extends State<SearchTab> {
 
       if (permission == LocationPermission.denied ||
           permission == LocationPermission.deniedForever) {
+        if (!mounted) return;
+        setState(() => _isLoadingCurrentLocation = false);
         return;
       }
 
@@ -63,61 +63,139 @@ class _SearchTabState extends State<SearchTab> {
       if (!mounted) return;
       setState(() {
         _currentLocation = LatLng(position.latitude, position.longitude);
+        _isLoadingCurrentLocation = false;
+      });
+      _syncPreviewMap();
+    } catch (_) {
+      if (!mounted) return;
+      setState(() => _isLoadingCurrentLocation = false);
+    }
+  }
+
+  /// Abre el selector compartido en modo de solo destino.
+  Future<void> _openDestinationPicker() async {
+    final result = await Navigator.of(context).push<PointsSelectionResult>(
+      MaterialPageRoute(
+        builder: (_) => PickerMapScreen(
+          initialStartPoint: null,
+          initialDestinationPoint: _destinationPoint,
+          currentLocation: _currentLocation,
+          mode: PointSelectionMode.singleDestination,
+        ),
+      ),
+    );
+
+    if (result == null || !mounted) return;
+
+    setState(() {
+      _destinationPoint = result.destinationPoint;
+      _destinationLabel = result.destinationLabel;
+      _searchErrorMessage = null;
+    });
+    _syncPreviewMap();
+  }
+
+  /// Consulta rutas públicas dentro del radio elegido para el destino activo.
+  Future<void> _searchPublicRoutes() async {
+    if (_destinationPoint == null) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Selecciona un destino antes de buscar rutas.'),
+        ),
+      );
+      return;
+    }
+
+    setState(() {
+      _isSearchingRoutes = true;
+      _hasSearchedRoutes = true;
+      _searchErrorMessage = null;
+    });
+
+    try {
+      final publicRoutes = await _savedRoutesService.fetchPublicRoutes();
+      final filtered =
+          publicRoutes
+              .where((route) {
+                if (route.activityProfile != _selectedProfile) {
+                  return false;
+                }
+
+                final distanceMeters = Geolocator.distanceBetween(
+                  _destinationPoint!.latitude,
+                  _destinationPoint!.longitude,
+                  route.endLat,
+                  route.endLon,
+                );
+
+                return distanceMeters <= _radius * 1000;
+              })
+              .toList(growable: false)
+            ..sort((a, b) {
+              final distanceToA = Geolocator.distanceBetween(
+                _destinationPoint!.latitude,
+                _destinationPoint!.longitude,
+                a.endLat,
+                a.endLon,
+              );
+              final distanceToB = Geolocator.distanceBetween(
+                _destinationPoint!.latitude,
+                _destinationPoint!.longitude,
+                b.endLat,
+                b.endLon,
+              );
+              return distanceToA.compareTo(distanceToB);
+            });
+
+      if (!mounted) return;
+      setState(() {
+        _publicRoutes = filtered;
+      });
+    } on SavedRouteException catch (error) {
+      if (!mounted) return;
+      setState(() {
+        _searchErrorMessage = error.message;
+        _publicRoutes = const [];
       });
     } catch (_) {
-      // Si falla, seguimos sin ubicación actual.
+      if (!mounted) return;
+      setState(() {
+        _searchErrorMessage =
+            'No se pudieron consultar las rutas publicas en este momento.';
+        _publicRoutes = const [];
+      });
+    } finally {
+      if (mounted) {
+        setState(() => _isSearchingRoutes = false);
+      }
     }
   }
 
   @override
   Widget build(BuildContext context) {
+    final destinationPreviewLabel =
+        _isLoadingCurrentLocation && _destinationPoint == null
+        ? 'Cargando ubicacion actual...'
+        : _destinationLabel;
+
     return ListView(
       padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 20),
       children: [
         _SectionLabel(text: 'Destino'),
         const SizedBox(height: 8),
-        TextField(
-          controller: _searchController,
-          focusNode: _searchFocusNode,
-          onChanged: _onSearchChanged,
-          onSubmitted: (_) => _searchSuggestions(_searchController.text),
-          decoration: InputDecoration(
-            hintText: '¿A dónde quieres ir?',
-            hintStyle: const TextStyle(color: Colors.grey, fontSize: 14),
-            prefixIcon: const Icon(Icons.search_rounded, color: Colors.grey),
-            suffixIcon: _isSearching
-                ? const Padding(
-                    padding: EdgeInsets.all(14),
-                    child: SizedBox(
-                      width: 18,
-                      height: 18,
-                      child: CircularProgressIndicator(strokeWidth: 2),
-                    ),
-                  )
-                : null,
-            filled: true,
-            fillColor: _surfaceHighest,
-            border: OutlineInputBorder(
-              borderRadius: BorderRadius.circular(16),
-              borderSide: BorderSide.none,
-            ),
-            contentPadding: const EdgeInsets.symmetric(vertical: 18),
-          ),
+        PointsPreview(
+          mapController: _mapController,
+          startPoint: null,
+          destinationPoint: _destinationPoint,
+          previewCenter: _currentLocation,
+          startLabel: '',
+          destinationLabel: destinationPreviewLabel,
+          mode: PointsPreviewMode.singleDestination,
+          actionLabel: 'Seleccionar destino',
+          destinationRadiusKm: _destinationPoint != null ? _radius : null,
+          onSelectPoints: _openDestinationPicker,
         ),
-        if (_suggestions.isNotEmpty) ...[
-          const SizedBox(height: 8),
-          ..._suggestions
-              .take(4)
-              .map(
-                (suggestion) => SuggestionItem(
-                  title: suggestion.title,
-                  subtitle: suggestion.subtitle,
-                  onTap: () => _selectSuggestion(suggestion),
-                ),
-              ),
-        ],
         const SizedBox(height: 28),
-
         _SectionLabel(text: 'Tipo de Actividad'),
         const SizedBox(height: 12),
         SingleChildScrollView(
@@ -150,7 +228,6 @@ class _SearchTabState extends State<SearchTab> {
         const SizedBox(height: 4),
         const _HorizontalScrollHint(),
         const SizedBox(height: 24),
-
         Container(
           padding: const EdgeInsets.all(20),
           decoration: BoxDecoration(
@@ -191,7 +268,7 @@ class _SearchTabState extends State<SearchTab> {
                   activeTrackColor: _primaryColor,
                   inactiveTrackColor: _surfaceHighest,
                   thumbColor: _primaryColor,
-                  overlayColor: _primaryColor.withOpacity(0.1),
+                  overlayColor: _primaryColor.withValues(alpha: 0.1),
                   trackHeight: 4,
                 ),
                 child: Slider(
@@ -222,159 +299,173 @@ class _SearchTabState extends State<SearchTab> {
                   ),
                 ],
               ),
+              const SizedBox(height: 18),
+              SizedBox(
+                width: double.infinity,
+                child: FilledButton(
+                  onPressed: _isSearchingRoutes ? null : _searchPublicRoutes,
+                  style: FilledButton.styleFrom(
+                    backgroundColor: _primaryColor,
+                    foregroundColor: Colors.white,
+                    padding: const EdgeInsets.symmetric(vertical: 16),
+                  ),
+                  child: _isSearchingRoutes
+                      ? const SizedBox(
+                          width: 20,
+                          height: 20,
+                          child: CircularProgressIndicator(
+                            strokeWidth: 2.2,
+                            color: Colors.white,
+                          ),
+                        )
+                      : const Text(
+                          'Buscar',
+                          style: TextStyle(fontWeight: FontWeight.w800),
+                        ),
+                ),
+              ),
             ],
           ),
         ),
         const SizedBox(height: 28),
-
-        _SectionLabel(text: 'Ruta Destacada'),
+        _SectionLabel(text: 'Rutas Públicas Cercanas'),
         const SizedBox(height: 12),
-        const SizedBox(height: 12),
-        RouteResultCard(
-          title: 'PH Reventazon',
-          distance: '9.2 km',
-          duration: '4h 30m',
-          elevationGain: '+1420m',
-          accentColor: const Color(0xFFFFB59F),
-          icon: Icons.terrain_rounded,
-          badge: 'EXPERT',
-          isHighlighted: true,
-          onPressed: () {},
+        Text(
+          _resultsSummaryText(),
+          style: const TextStyle(
+            fontSize: 14,
+            color: Colors.grey,
+            fontWeight: FontWeight.w500,
+          ),
         ),
         const SizedBox(height: 16),
+        if (_searchErrorMessage != null)
+          _InfoCard(
+            message: _searchErrorMessage!,
+            icon: Icons.error_outline_rounded,
+            iconColor: Colors.redAccent,
+          )
+        else if (!_hasSearchedRoutes)
+          const _InfoCard(
+            message:
+                'Selecciona un destino, ajusta el radio y busca rutas publicas cercanas.',
+            icon: Icons.travel_explore_rounded,
+            iconColor: _primaryColor,
+          )
+        else if (_isSearchingRoutes)
+          const _InfoCard(
+            message: 'Buscando rutas publicas dentro del radio seleccionado...',
+            icon: Icons.sync_rounded,
+            iconColor: _primaryColor,
+          )
+        else if (_publicRoutes.isEmpty)
+          const _InfoCard(
+            message:
+                'No se encontraron rutas publicas dentro del radio elegido para esta actividad.',
+            icon: Icons.alt_route_rounded,
+            iconColor: _primaryColor,
+          )
+        else
+          ..._publicRoutes.map(
+            (route) => Padding(
+              padding: const EdgeInsets.only(bottom: 16),
+              child: RouteResultCard(
+                title: route.title,
+                distance: route.toRouteResult().formattedDistance,
+                duration: route.toRouteResult().formattedDuration,
+                elevationGain: route.toRouteResult().formattedElevationGain,
+                accentColor: _accentForProfile(route.activityProfile),
+                icon: _iconForProfile(route.activityProfile),
+                badge: 'PUBLICA',
+                isHighlighted: true,
+                buttonText: 'Ver trazado',
+                onPressed: () {
+                  Navigator.of(context).push(
+                    MaterialPageRoute(
+                      builder: (_) => RoutePreviewScreen(
+                        title: route.title,
+                        route: route.toRouteResult(),
+                        profile: route.activityProfile,
+                        preference: route.routingPreference,
+                        startLabel: route.startLabel,
+                        endLabel: route.endLabel,
+                        allowSave: false,
+                      ),
+                    ),
+                  );
+                },
+              ),
+            ),
+          ),
       ],
     );
   }
 
-  void _onSearchChanged(String value) {
-    _debounce?.cancel();
-    if (value.trim().isEmpty) {
-      setState(() {
-        _suggestions = [];
-        _isSearching = false;
-      });
-      return;
-    }
-
-    _debounce = Timer(const Duration(milliseconds: 350), () {
-      _searchSuggestions(value);
-    });
-  }
-
-  /// Consulta lugares en Nominatim a partir del texto del usuario.
-  Future<void> _searchSuggestions(String query) async {
-    final trimmed = query.trim();
-    if (trimmed.isEmpty) return;
-
-    setState(() => _isSearching = true);
-
-    try {
-      final uri = Uri.https('nominatim.openstreetmap.org', '/search', {
-        'q': trimmed,
-        'format': 'jsonv2',
-        'limit': '8',
-        'addressdetails': '1',
-      });
-      final responseBody = await _getJson(uri);
-      final List<dynamic> data = jsonDecode(responseBody) as List<dynamic>;
-
-      final suggestions = data
-          .map(
-            (item) => _PlaceSuggestion.fromJson(item as Map<String, dynamic>),
-          )
-          .toList();
-
-      suggestions.sort((a, b) {
-        final importanceCompare = b.importance.compareTo(a.importance);
-        if (importanceCompare != 0) return importanceCompare;
-        if (_currentLocation == null) return 0;
-        final distanceA = const Distance().as(
-          LengthUnit.Meter,
-          _currentLocation!,
-          a.point,
-        );
-        final distanceB = const Distance().as(
-          LengthUnit.Meter,
-          _currentLocation!,
-          b.point,
-        );
-        return distanceA.compareTo(distanceB);
-      });
-
-      if (!mounted) return;
-      setState(() {
-        _suggestions = suggestions.take(4).toList();
-        _isSearching = false;
-      });
-    } catch (_) {
-      if (!mounted) return;
-      setState(() {
-        _suggestions = [];
-        _isSearching = false;
-      });
+  RouteProfile get _selectedProfile {
+    switch (_selectedActivity) {
+      case 0:
+        return RouteProfile.cycling;
+      case 2:
+        return RouteProfile.running;
+      case 1:
+      default:
+        return RouteProfile.hiking;
     }
   }
 
-  Future<String> _getJson(Uri uri) async {
-    final client = HttpClient();
-    try {
-      final request = await client.getUrl(uri);
-      request.headers.set(HttpHeaders.userAgentHeader, _nominatimUserAgent);
-      request.headers.set(HttpHeaders.acceptHeader, 'application/json');
-      final response = await request.close();
-      final responseBody = await response.transform(utf8.decoder).join();
-      if (response.statusCode < 200 || response.statusCode >= 300) {
-        throw HttpException('Request failed', uri: uri);
+  String _resultsSummaryText() {
+    if (!_hasSearchedRoutes) {
+      return 'Todavia no has consultado rutas publicas para este destino';
+    }
+    if (_isSearchingRoutes) {
+      return 'Consultando rutas de ${_selectedProfileLabel.toLowerCase()} cerca del destino seleccionado';
+    }
+    if (_searchErrorMessage != null) {
+      return 'La consulta de rutas publicas no pudo completarse';
+    }
+    return 'Se encontraron ${_publicRoutes.length} rutas publicas de ${_selectedProfileLabel.toLowerCase()} dentro de ${_radius.toInt()} km';
+  }
+
+  String get _selectedProfileLabel {
+    switch (_selectedProfile) {
+      case RouteProfile.cycling:
+        return 'Ciclismo';
+      case RouteProfile.hiking:
+        return 'Senderismo';
+      case RouteProfile.running:
+        return 'Running';
+    }
+  }
+
+  Color _accentForProfile(RouteProfile profile) {
+    switch (profile) {
+      case RouteProfile.cycling:
+        return const Color(0xFFAEEECB);
+      case RouteProfile.hiking:
+        return const Color(0xFFC1ECD4);
+      case RouteProfile.running:
+        return const Color(0xFFFFB59F);
+    }
+  }
+
+  IconData _iconForProfile(RouteProfile profile) {
+    switch (profile) {
+      case RouteProfile.cycling:
+        return Icons.directions_bike_rounded;
+      case RouteProfile.hiking:
+        return Icons.hiking_rounded;
+      case RouteProfile.running:
+        return Icons.directions_run_rounded;
+    }
+  }
+
+  void _syncPreviewMap() {
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      final center = _destinationPoint ?? _currentLocation;
+      if (center != null) {
+        _mapController.move(center, _destinationPoint != null ? 12.5 : 11.5);
       }
-      return responseBody;
-    } finally {
-      client.close();
-    }
-  }
-
-  void _selectSuggestion(_PlaceSuggestion suggestion) {
-    _searchController.text = suggestion.title;
-    _searchController.selection = TextSelection.fromPosition(
-      TextPosition(offset: _searchController.text.length),
-    );
-    _searchFocusNode.unfocus();
-    setState(() {
-      _suggestions = [];
     });
-  }
-}
-
-/// Modelo liviano para representar un resultado de búsqueda geográfica.
-class _PlaceSuggestion {
-  const _PlaceSuggestion({
-    required this.title,
-    required this.subtitle,
-    required this.point,
-    required this.importance,
-  });
-
-  final String title;
-  final String subtitle;
-  final LatLng point;
-  final double importance;
-
-  factory _PlaceSuggestion.fromJson(Map<String, dynamic> json) {
-    final displayName = (json['display_name'] as String? ?? '').trim();
-    final parts = displayName.split(',');
-
-    return _PlaceSuggestion(
-      title: parts.isNotEmpty && parts.first.trim().isNotEmpty
-          ? parts.first.trim()
-          : 'Lugar encontrado',
-      subtitle: parts.length > 1
-          ? parts.skip(1).take(2).map((part) => part.trim()).join(', ')
-          : 'Sin detalles',
-      point: LatLng(
-        double.parse(json['lat'] as String),
-        double.parse(json['lon'] as String),
-      ),
-      importance: (json['importance'] as num?)?.toDouble() ?? 0,
-    );
   }
 }
 
@@ -415,6 +506,47 @@ class _HorizontalScrollHint extends StatelessWidget {
         SizedBox(width: 6),
         Icon(Icons.arrow_forward_rounded, size: 14, color: Colors.grey),
       ],
+    );
+  }
+}
+
+class _InfoCard extends StatelessWidget {
+  const _InfoCard({
+    required this.message,
+    required this.icon,
+    required this.iconColor,
+  });
+
+  final String message;
+  final IconData icon;
+  final Color iconColor;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.all(18),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(24),
+        border: Border.all(color: Colors.grey.shade200),
+      ),
+      child: Row(
+        children: [
+          Icon(icon, color: iconColor),
+          const SizedBox(width: 12),
+          Expanded(
+            child: Text(
+              message,
+              style: const TextStyle(
+                fontSize: 14,
+                fontWeight: FontWeight.w600,
+                color: Color(0xFF191C1D),
+                height: 1.4,
+              ),
+            ),
+          ),
+        ],
+      ),
     );
   }
 }

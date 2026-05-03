@@ -7,18 +7,23 @@ import 'package:flutter/material.dart';
 import 'package:flutter_map/flutter_map.dart';
 import 'package:latlong2/latlong.dart';
 
-/// Pantalla para elegir origen y destino directamente sobre el mapa.
+/// Define si el selector trabaja con dos puntos o solo con destino.
+enum PointSelectionMode { dualPoint, singleDestination }
+
+/// Pantalla para elegir puntos directamente sobre el mapa.
 class PickerMapScreen extends StatefulWidget {
   const PickerMapScreen({
     super.key,
     required this.initialStartPoint,
     required this.initialDestinationPoint,
     required this.currentLocation,
+    this.mode = PointSelectionMode.dualPoint,
   });
 
   final LatLng? initialStartPoint;
   final LatLng? initialDestinationPoint;
   final LatLng? currentLocation;
+  final PointSelectionMode mode;
 
   @override
   State<PickerMapScreen> createState() => _PickerMapScreenState();
@@ -41,17 +46,25 @@ class _PickerMapScreenState extends State<PickerMapScreen> {
 
   late LatLng? _selectedStartPoint;
   late LatLng? _selectedDestinationPoint;
-  String _startLabel = 'Ubicación actual no disponible';
+  String _startLabel = 'Ubicacion actual no disponible';
   String _destinationLabel = 'Pendiente de seleccionar';
+
+  bool get _showsDualPoint => widget.mode == PointSelectionMode.dualPoint;
 
   @override
   void initState() {
     super.initState();
-    _selectedStartPoint = widget.initialStartPoint ?? widget.currentLocation;
+    _selectedStartPoint = _showsDualPoint
+        ? widget.initialStartPoint ?? widget.currentLocation
+        : widget.initialStartPoint;
     _selectedDestinationPoint = widget.initialDestinationPoint;
-    _startLabel = _selectedStartPoint != null
-        ? _formatCoordinates(_selectedStartPoint!)
-        : 'Ubicación actual no disponible';
+    _activeTarget = _showsDualPoint
+        ? _SelectionTarget.destination
+        : _SelectionTarget.destination;
+
+    if (_selectedStartPoint != null) {
+      _startLabel = _formatCoordinates(_selectedStartPoint!);
+    }
     if (_selectedDestinationPoint != null) {
       _destinationLabel = _formatCoordinates(_selectedDestinationPoint!);
     }
@@ -68,7 +81,7 @@ class _PickerMapScreenState extends State<PickerMapScreen> {
 
   /// Recupera etiquetas iniciales para no mostrar coordenadas cuando ya existen.
   Future<void> _hydrateInitialLabels() async {
-    if (_selectedStartPoint != null) {
+    if (_showsDualPoint && _selectedStartPoint != null) {
       final startLabel = await _reverseGeocode(_selectedStartPoint!);
       if (!mounted) return;
       setState(() => _startLabel = startLabel);
@@ -98,9 +111,12 @@ class _PickerMapScreenState extends State<PickerMapScreen> {
         backgroundColor: _surfaceColor,
         elevation: 0,
         scrolledUnderElevation: 0,
-        title: const Text(
-          'Seleccionar puntos',
-          style: TextStyle(color: _primaryColor, fontWeight: FontWeight.w800),
+        title: Text(
+          _showsDualPoint ? 'Seleccionar puntos' : 'Seleccionar destino',
+          style: const TextStyle(
+            color: _primaryColor,
+            fontWeight: FontWeight.w800,
+          ),
         ),
       ),
       body: Stack(
@@ -119,7 +135,7 @@ class _PickerMapScreenState extends State<PickerMapScreen> {
               ),
               MarkerLayer(
                 markers: [
-                  if (_selectedStartPoint != null)
+                  if (_showsDualPoint && _selectedStartPoint != null)
                     Marker(
                       point: _selectedStartPoint!,
                       width: 44,
@@ -215,11 +231,11 @@ class _PickerMapScreenState extends State<PickerMapScreen> {
                 Container(
                   padding: const EdgeInsets.all(16),
                   decoration: BoxDecoration(
-                    color: Colors.white.withOpacity(0.94),
+                    color: Colors.white.withValues(alpha: 0.94),
                     borderRadius: BorderRadius.circular(24),
                     boxShadow: [
                       BoxShadow(
-                        color: Colors.black.withOpacity(0.08),
+                        color: Colors.black.withValues(alpha: 0.08),
                         blurRadius: 18,
                         offset: const Offset(0, 8),
                       ),
@@ -233,9 +249,12 @@ class _PickerMapScreenState extends State<PickerMapScreen> {
                           crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
                             Text(
-                              _activeTarget == _SelectionTarget.destination
-                                  ? 'Seleccionando destino'
-                                  : 'Seleccionando inicio',
+                              _showsDualPoint
+                                  ? (_activeTarget ==
+                                            _SelectionTarget.destination
+                                        ? 'Seleccionando destino'
+                                        : 'Seleccionando inicio')
+                                  : 'Seleccionando destino',
                               style: const TextStyle(
                                 fontSize: 12,
                                 fontWeight: FontWeight.w800,
@@ -244,35 +263,43 @@ class _PickerMapScreenState extends State<PickerMapScreen> {
                             ),
                             const SizedBox(height: 4),
                             Text(
-                              'Selecciona directamente inicio o destino.',
+                              _showsDualPoint
+                                  ? 'Selecciona directamente inicio o destino.'
+                                  : 'Selecciona un destino desde el mapa o el buscador.',
                               style: TextStyle(
                                 fontSize: 12,
                                 color: Colors.grey.shade700,
                               ),
                             ),
                             const SizedBox(height: 12),
-                            _SelectionRow(
-                              label: 'Inicio',
-                              value: _startLabel,
-                              selected: _activeTarget == _SelectionTarget.start,
-                              onTap: () {
-                                setState(
-                                  () => _activeTarget = _SelectionTarget.start,
-                                );
-                              },
-                            ),
-                            const SizedBox(height: 10),
+                            if (_showsDualPoint) ...[
+                              _SelectionRow(
+                                label: 'Inicio',
+                                value: _startLabel,
+                                selected:
+                                    _activeTarget == _SelectionTarget.start,
+                                onTap: () {
+                                  setState(
+                                    () =>
+                                        _activeTarget = _SelectionTarget.start,
+                                  );
+                                },
+                              ),
+                              const SizedBox(height: 10),
+                            ],
                             _SelectionRow(
                               label: 'Destino',
                               value: _destinationLabel,
                               selected:
                                   _activeTarget == _SelectionTarget.destination,
-                              onTap: () {
-                                setState(
-                                  () => _activeTarget =
-                                      _SelectionTarget.destination,
-                                );
-                              },
+                              onTap: _showsDualPoint
+                                  ? () {
+                                      setState(
+                                        () => _activeTarget =
+                                            _SelectionTarget.destination,
+                                      );
+                                    }
+                                  : null,
                             ),
                           ],
                         ),
@@ -341,7 +368,7 @@ class _PickerMapScreenState extends State<PickerMapScreen> {
     _moveMapToSuggestion(suggestions.first);
   }
 
-  /// Consulta lugares remotos para ayudar a posicionar inicio y destino.
+  /// Consulta lugares remotos para ayudar a posicionar la selección actual.
   Future<List<_PlaceSuggestion>> _searchPlaces(String query) async {
     setState(() => _isSearching = true);
 
@@ -401,7 +428,7 @@ class _PickerMapScreenState extends State<PickerMapScreen> {
     if (!mounted) return;
 
     setState(() {
-      if (_activeTarget == _SelectionTarget.start) {
+      if (_showsDualPoint && _activeTarget == _SelectionTarget.start) {
         _selectedStartPoint = point;
         _startLabel = label;
       } else {
@@ -419,6 +446,7 @@ class _PickerMapScreenState extends State<PickerMapScreen> {
     );
     _searchFocusNode.unfocus();
     setState(() => _suggestions = []);
+    _selectPoint(suggestion.point);
   }
 
   Future<void> _selectCurrentLocation() async {
@@ -432,9 +460,9 @@ class _PickerMapScreenState extends State<PickerMapScreen> {
   void _applySelection() {
     Navigator.of(context).pop(
       PointsSelectionResult(
-        startPoint: _selectedStartPoint,
+        startPoint: _showsDualPoint ? _selectedStartPoint : null,
         destinationPoint: _selectedDestinationPoint,
-        startLabel: _startLabel,
+        startLabel: _showsDualPoint ? _startLabel : '',
         destinationLabel: _destinationLabel,
       ),
     );
@@ -513,7 +541,7 @@ class _SelectionRow extends StatelessWidget {
   final String label;
   final String value;
   final bool selected;
-  final VoidCallback onTap;
+  final VoidCallback? onTap;
 
   @override
   Widget build(BuildContext context) {
@@ -543,6 +571,8 @@ class _SelectionRow extends StatelessWidget {
             Expanded(
               child: Text(
                 value,
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
                 style: TextStyle(
                   fontSize: 12,
                   color: Colors.grey.shade700,
@@ -575,7 +605,9 @@ class _PointMarker extends StatelessWidget {
         color: color,
         shape: BoxShape.circle,
         border: Border.all(color: Colors.white, width: 3),
-        boxShadow: [BoxShadow(color: color.withOpacity(0.25), blurRadius: 12)],
+        boxShadow: [
+          BoxShadow(color: color.withValues(alpha: 0.25), blurRadius: 12),
+        ],
       ),
       child: Icon(icon, size: 16, color: iconColor),
     );
@@ -614,8 +646,3 @@ class _PlaceSuggestion {
     );
   }
 }
-
-/*
-Esta pantalla se usa para seleccionar el 
-punto de inicio y fin al generar rutas con IA
-*/

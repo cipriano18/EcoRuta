@@ -1,11 +1,50 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
-import 'package:firebase_auth/firebase_auth.dart';
 import 'package:ecoruta/models/user_model.dart';
+import 'package:firebase_auth/firebase_auth.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 
 /// Administra autenticación y perfil persistido del usuario en Firebase.
 class AuthService {
+  static const _rememberMeKey = 'auth.remember_me';
+  static const _rememberedEmailKey = 'auth.remembered_email';
+
   final FirebaseAuth _auth = FirebaseAuth.instance;
   final FirebaseFirestore _firestore = FirebaseFirestore.instance;
+
+  /// Aplica al arrancar la preferencia local que controla si la sesión se conserva.
+  Future<void> initializeRememberedSession() async {
+    final prefs = await SharedPreferences.getInstance();
+    final shouldRemember = prefs.getBool(_rememberMeKey) ?? false;
+
+    if (!shouldRemember && _auth.currentUser != null) {
+      await _auth.signOut();
+    }
+  }
+
+  /// Devuelve la configuración local usada por el checkbox de recordarme.
+  Future<RememberedLoginState> getRememberedLoginState() async {
+    final prefs = await SharedPreferences.getInstance();
+    return RememberedLoginState(
+      rememberMe: prefs.getBool(_rememberMeKey) ?? false,
+      email: (prefs.getString(_rememberedEmailKey) ?? '').trim(),
+    );
+  }
+
+  /// Persiste la preferencia de recordarme y el correo asociado al acceso.
+  Future<void> saveRememberedLogin({
+    required bool rememberMe,
+    required String email,
+  }) async {
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setBool(_rememberMeKey, rememberMe);
+
+    if (rememberMe) {
+      await prefs.setString(_rememberedEmailKey, email.trim());
+      return;
+    }
+
+    await prefs.remove(_rememberedEmailKey);
+  }
 
   /// Inicia sesión con correo y contraseña normalizados.
   Future<UserCredential> login({
@@ -41,7 +80,6 @@ class AuthService {
       );
     }
 
-    //  Guardar en Firestore
     await _firestore.collection('users').doc(user.uid).set({
       'uid': user.uid,
       'email': email.trim(),
@@ -246,9 +284,19 @@ class AuthService {
     return null;
   }
 
-  // LOGOUT
   /// Cierra la sesión activa en Firebase Auth.
-  Future<void> logout() async {
+  Future<void> logout({bool clearRememberedLogin = true}) async {
     await _auth.signOut();
+    if (clearRememberedLogin) {
+      await saveRememberedLogin(rememberMe: false, email: '');
+    }
   }
+}
+
+/// Estado local usado para precargar el formulario de inicio de sesión.
+class RememberedLoginState {
+  const RememberedLoginState({required this.rememberMe, required this.email});
+
+  final bool rememberMe;
+  final String email;
 }

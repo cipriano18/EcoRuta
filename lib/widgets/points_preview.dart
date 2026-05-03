@@ -4,7 +4,10 @@ import 'package:flutter/material.dart';
 import 'package:flutter_map/flutter_map.dart';
 import 'package:latlong2/latlong.dart';
 
-/// Previsualiza en pequeño el origen y destino seleccionados.
+/// Define cómo se presenta la cabecera reutilizable de selección de puntos.
+enum PointsPreviewMode { dualPoint, singleDestination }
+
+/// Previsualiza en pequeño los puntos seleccionados y abre el selector en mapa.
 class PointsPreview extends StatelessWidget {
   static const _primaryColor = Color(0xFF012D1D);
   static const _primaryFixed = Color(0xFFC1ECD4);
@@ -16,10 +19,14 @@ class PointsPreview extends StatelessWidget {
   final MapController mapController;
   final LatLng? startPoint;
   final LatLng? destinationPoint;
+  final LatLng? previewCenter;
   final String startLabel;
   final String destinationLabel;
-  final VoidCallback onSwap;
+  final VoidCallback? onSwap;
   final VoidCallback onSelectPoints;
+  final PointsPreviewMode mode;
+  final String actionLabel;
+  final double? destinationRadiusKm;
 
   const PointsPreview({
     super.key,
@@ -28,15 +35,21 @@ class PointsPreview extends StatelessWidget {
     required this.destinationPoint,
     required this.startLabel,
     required this.destinationLabel,
-    required this.onSwap,
     required this.onSelectPoints,
+    this.previewCenter,
+    this.onSwap,
+    this.mode = PointsPreviewMode.dualPoint,
+    this.actionLabel = 'Seleccionar puntos',
+    this.destinationRadiusKm,
   });
+
+  bool get _showsDualPoint => mode == PointsPreviewMode.dualPoint;
 
   @override
   Widget build(BuildContext context) {
     final center = _resolveCenter();
     final markers = <Marker>[
-      if (startPoint != null)
+      if (_showsDualPoint && startPoint != null)
         Marker(
           point: startPoint!,
           width: 84,
@@ -55,7 +68,7 @@ class PointsPreview extends StatelessWidget {
     ];
 
     return SizedBox(
-      height: 432,
+      height: _showsDualPoint ? 432 : 388,
       child: Stack(
         clipBehavior: Clip.none,
         children: [
@@ -86,7 +99,25 @@ class PointsPreview extends StatelessWidget {
                                 userAgentPackageName:
                                     'com.example.lab2_moviles',
                               ),
-                              Container(color: _primaryColor.withOpacity(0.08)),
+                              Container(
+                                color: _primaryColor.withValues(alpha: 0.08),
+                              ),
+                              if (destinationPoint != null &&
+                                  destinationRadiusKm != null)
+                                CircleLayer(
+                                  circles: [
+                                    CircleMarker(
+                                      point: destinationPoint!,
+                                      radius: destinationRadiusKm! * 1000,
+                                      useRadiusInMeter: true,
+                                      color: _tertiaryFixed.withValues(
+                                        alpha: 0.20,
+                                      ),
+                                      borderColor: const Color(0xFF721D00),
+                                      borderStrokeWidth: 2,
+                                    ),
+                                  ],
+                                ),
                               MarkerLayer(markers: markers),
                             ],
                           ),
@@ -130,12 +161,14 @@ class PointsPreview extends StatelessWidget {
                 child: Container(
                   padding: const EdgeInsets.all(16),
                   decoration: BoxDecoration(
-                    color: Colors.white.withOpacity(0.72),
+                    color: Colors.white.withValues(alpha: 0.72),
                     borderRadius: BorderRadius.circular(24),
-                    border: Border.all(color: Colors.white.withOpacity(0.4)),
+                    border: Border.all(
+                      color: Colors.white.withValues(alpha: 0.4),
+                    ),
                     boxShadow: [
                       BoxShadow(
-                        color: Colors.black.withOpacity(0.08),
+                        color: Colors.black.withValues(alpha: 0.08),
                         blurRadius: 20,
                         offset: const Offset(0, 8),
                       ),
@@ -144,44 +177,51 @@ class PointsPreview extends StatelessWidget {
                   child: Column(
                     children: [
                       Row(
+                        crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
                           Expanded(
                             child: Column(
                               children: [
-                                _LocationRow(
-                                  label: 'Inicio',
-                                  value: startLabel,
-                                  icon: Icons.circle,
-                                  iconColor: _primaryFixed,
-                                ),
-                                const SizedBox(height: 14),
+                                if (_showsDualPoint) ...[
+                                  _LocationRow(
+                                    label: 'Inicio',
+                                    value: startLabel,
+                                    icon: Icons.circle,
+                                    iconColor: _primaryFixed,
+                                    emphasized: true,
+                                  ),
+                                  const SizedBox(height: 14),
+                                ],
                                 _LocationRow(
                                   label: 'Destino',
                                   value: destinationLabel,
                                   icon: Icons.location_on_rounded,
                                   iconColor: _tertiaryFixed,
+                                  emphasized: false,
                                 ),
                               ],
                             ),
                           ),
-                          const SizedBox(width: 12),
-                          InkWell(
-                            onTap: onSwap,
-                            borderRadius: BorderRadius.circular(24),
-                            child: Ink(
-                              width: 48,
-                              height: 48,
-                              decoration: BoxDecoration(
-                                color: Colors.white,
-                                shape: BoxShape.circle,
-                                border: Border.all(color: _swapButtonColor),
-                              ),
-                              child: const Icon(
-                                Icons.swap_vert_rounded,
-                                color: _swapButtonColor,
+                          if (_showsDualPoint && onSwap != null) ...[
+                            const SizedBox(width: 12),
+                            InkWell(
+                              onTap: onSwap,
+                              borderRadius: BorderRadius.circular(24),
+                              child: Ink(
+                                width: 48,
+                                height: 48,
+                                decoration: BoxDecoration(
+                                  color: Colors.white,
+                                  shape: BoxShape.circle,
+                                  border: Border.all(color: _swapButtonColor),
+                                ),
+                                child: const Icon(
+                                  Icons.swap_vert_rounded,
+                                  color: _swapButtonColor,
+                                ),
                               ),
                             ),
-                          ),
+                          ],
                         ],
                       ),
                       const SizedBox(height: 16),
@@ -198,9 +238,9 @@ class PointsPreview extends StatelessWidget {
                               borderRadius: BorderRadius.circular(18),
                             ),
                           ),
-                          child: const Text(
-                            'Seleccionar puntos',
-                            style: TextStyle(
+                          child: Text(
+                            actionLabel,
+                            style: const TextStyle(
                               fontSize: 14,
                               fontWeight: FontWeight.w800,
                             ),
@@ -219,13 +259,13 @@ class PointsPreview extends StatelessWidget {
   }
 
   LatLng _resolveCenter() {
-    if (startPoint != null && destinationPoint != null) {
+    if (_showsDualPoint && startPoint != null && destinationPoint != null) {
       return LatLng(
         (startPoint!.latitude + destinationPoint!.latitude) / 2,
         (startPoint!.longitude + destinationPoint!.longitude) / 2,
       );
     }
-    return startPoint ?? destinationPoint ?? _fallbackCenter;
+    return destinationPoint ?? startPoint ?? previewCenter ?? _fallbackCenter;
   }
 }
 
@@ -236,18 +276,24 @@ class _LocationRow extends StatelessWidget {
     required this.value,
     required this.icon,
     required this.iconColor,
+    required this.emphasized,
   });
 
   final String label;
   final String value;
   final IconData icon;
   final Color iconColor;
+  final bool emphasized;
 
   @override
   Widget build(BuildContext context) {
     return Row(
+      crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Icon(icon, size: 18, color: iconColor),
+        Padding(
+          padding: const EdgeInsets.only(top: 2),
+          child: Icon(icon, size: 18, color: iconColor),
+        ),
         const SizedBox(width: 10),
         Expanded(
           child: Column(
@@ -265,11 +311,11 @@ class _LocationRow extends StatelessWidget {
               const SizedBox(height: 2),
               Text(
                 value,
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
                 style: TextStyle(
                   fontSize: 14,
-                  fontWeight: label == 'Destino'
-                      ? FontWeight.w600
-                      : FontWeight.w800,
+                  fontWeight: emphasized ? FontWeight.w800 : FontWeight.w600,
                   color: const Color(0xFF191C1D),
                 ),
               ),
@@ -300,7 +346,10 @@ class _StartMarker extends StatelessWidget {
             shape: BoxShape.circle,
             border: Border.all(color: Colors.white, width: 3),
             boxShadow: [
-              BoxShadow(color: _primaryColor.withOpacity(0.25), blurRadius: 10),
+              BoxShadow(
+                color: _primaryColor.withValues(alpha: 0.25),
+                blurRadius: 10,
+              ),
             ],
           ),
         ),
@@ -311,7 +360,10 @@ class _StartMarker extends StatelessWidget {
             color: Colors.white,
             borderRadius: BorderRadius.circular(10),
             boxShadow: [
-              BoxShadow(color: Colors.black.withOpacity(0.08), blurRadius: 10),
+              BoxShadow(
+                color: Colors.black.withValues(alpha: 0.08),
+                blurRadius: 10,
+              ),
             ],
           ),
           child: const Text(
@@ -345,15 +397,13 @@ class _DestinationMarker extends StatelessWidget {
         shape: BoxShape.circle,
         border: Border.all(color: Colors.white, width: 2),
         boxShadow: [
-          BoxShadow(color: _tertiaryColor.withOpacity(0.22), blurRadius: 10),
+          BoxShadow(
+            color: _tertiaryColor.withValues(alpha: 0.22),
+            blurRadius: 10,
+          ),
         ],
       ),
       child: const Icon(Icons.flag_rounded, size: 12, color: _tertiaryColor),
     );
   }
 }
-
-/*
-widget encargado de mostrar la vista previa de los puntos seleccionados
-en la pantalla picker_map.dart
-*/

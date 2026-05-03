@@ -47,6 +47,18 @@ class SavedRoutesService {
         );
   }
 
+  /// Obtiene una instantánea puntual de las rutas públicas disponibles.
+  Future<List<StoredRoute>> fetchPublicRoutes() async {
+    _requireUserId();
+
+    final snapshot = await _routes
+        .where('visibility', isEqualTo: StoredRouteVisibility.public.name)
+        .orderBy('createdAt', descending: true)
+        .get();
+
+    return snapshot.docs.map(StoredRoute.fromDocument).toList(growable: false);
+  }
+
   /// Persiste una ruta calculada junto con su geometría comprimida.
   Future<String> saveRoute({
     required String title,

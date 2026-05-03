@@ -2,8 +2,8 @@ import 'package:ecoruta/models/user_model.dart';
 import 'package:ecoruta/providers/user_provider.dart';
 import 'package:ecoruta/routes/app_routes.dart';
 import 'package:ecoruta/services/auth_service.dart';
-import 'package:font_awesome_flutter/font_awesome_flutter.dart';
 import 'package:firebase_auth/firebase_auth.dart';
+import 'package:font_awesome_flutter/font_awesome_flutter.dart';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
@@ -16,12 +16,33 @@ class LoginScreen extends StatefulWidget {
 }
 
 class _LoginScreenState extends State<LoginScreen> {
+  final AuthService _authService = AuthService();
+
   bool obscurePassword = true;
   bool rememberMe = false;
   bool isLoading = false;
 
   final TextEditingController emailController = TextEditingController();
   final TextEditingController passwordController = TextEditingController();
+
+  @override
+  void initState() {
+    super.initState();
+    _loadRememberedLogin();
+  }
+
+  /// Recupera la preferencia local para precargar el formulario.
+  Future<void> _loadRememberedLogin() async {
+    final remembered = await _authService.getRememberedLoginState();
+    if (!mounted) return;
+
+    setState(() {
+      rememberMe = remembered.rememberMe;
+      if (remembered.email.isNotEmpty) {
+        emailController.text = remembered.email;
+      }
+    });
+  }
 
   /// Valida el formulario, autentica al usuario y carga su perfil en memoria.
   Future<void> loginUser() async {
@@ -30,7 +51,7 @@ class _LoginScreenState extends State<LoginScreen> {
 
     if (email.isEmpty || password.isEmpty) {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Ingrese correo y contraseña')),
+        const SnackBar(content: Text('Ingrese correo y contrasena')),
       );
       return;
     }
@@ -40,14 +61,18 @@ class _LoginScreenState extends State<LoginScreen> {
     });
 
     try {
-      final userCredential = await AuthService().login(
+      final userCredential = await _authService.login(
         email: email,
         password: password,
+      );
+      await _authService.saveRememberedLogin(
+        rememberMe: rememberMe,
+        email: email,
       );
 
       final uid = userCredential.user!.uid;
 
-      final data = await AuthService().getUserData(uid);
+      final data = await _authService.getUserData(uid);
 
       if (data != null) {
         final userModel = UserModel.fromMap(data);
@@ -61,16 +86,16 @@ class _LoginScreenState extends State<LoginScreen> {
 
       Navigator.pushReplacementNamed(context, AppRoutes.shell);
     } on FirebaseAuthException catch (e) {
-      String mensaje = 'Error al iniciar sesión';
+      String mensaje = 'Error al iniciar sesion';
 
       if (e.code == 'user-not-found') {
         mensaje = 'No existe un usuario con ese correo';
       } else if (e.code == 'wrong-password') {
-        mensaje = 'Contraseña incorrecta';
+        mensaje = 'Contrasena incorrecta';
       } else if (e.code == 'invalid-email') {
-        mensaje = 'Correo inválido';
+        mensaje = 'Correo invalido';
       } else if (e.code == 'invalid-credential') {
-        mensaje = 'Correo o contraseña incorrectos';
+        mensaje = 'Correo o contrasena incorrectos';
       }
 
       ScaffoldMessenger.of(
@@ -117,7 +142,7 @@ class _LoginScreenState extends State<LoginScreen> {
           },
         ),
         title: const Text(
-          'Iniciar Sesión',
+          'Iniciar Sesion',
           style: TextStyle(fontWeight: FontWeight.w700, color: primaryColor),
         ),
         centerTitle: false,
@@ -129,9 +154,8 @@ class _LoginScreenState extends State<LoginScreen> {
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               const SizedBox(height: 8),
-
               const Text(
-                'ÚNETE A LA EXPEDICIÓN',
+                'UNETE A LA EXPEDICION',
                 style: TextStyle(
                   fontSize: 11,
                   fontWeight: FontWeight.w800,
@@ -140,7 +164,6 @@ class _LoginScreenState extends State<LoginScreen> {
                 ),
               ),
               const SizedBox(height: 8),
-
               const Text(
                 'Bienvenido de nuevo',
                 style: TextStyle(
@@ -151,29 +174,24 @@ class _LoginScreenState extends State<LoginScreen> {
                 ),
               ),
               const SizedBox(height: 10),
-
               const Text(
                 'Ingresa tus credenciales para continuar tu aventura.',
                 style: TextStyle(fontSize: 14, color: softTextColor),
               ),
-
               const SizedBox(height: 32),
-
-              _buildLabel('Correo electrónico'),
+              _buildLabel('Correo electronico'),
               _buildInputField(
                 controller: emailController,
                 hint: 'usuario@correo.com',
                 icon: Icons.email_outlined,
               ),
-
               const SizedBox(height: 18),
-
-              _buildLabel('Contraseña'),
+              _buildLabel('Contrasena'),
               TextField(
                 controller: passwordController,
                 obscureText: obscurePassword,
                 decoration: InputDecoration(
-                  hintText: '••••••••',
+                  hintText: '********',
                   hintStyle: const TextStyle(color: Colors.black38),
                   prefixIcon: const Icon(Icons.lock_outline),
                   suffixIcon: IconButton(
@@ -201,9 +219,7 @@ class _LoginScreenState extends State<LoginScreen> {
                   ),
                 ),
               ),
-
               const SizedBox(height: 18),
-
               Row(
                 children: [
                   Expanded(
@@ -245,7 +261,7 @@ class _LoginScreenState extends State<LoginScreen> {
                   TextButton(
                     onPressed: () {},
                     child: const Text(
-                      '¿Olvidaste tu contraseña?',
+                      'Olvidaste tu contrasena?',
                       style: TextStyle(
                         color: primaryColor,
                         fontWeight: FontWeight.w700,
@@ -255,9 +271,7 @@ class _LoginScreenState extends State<LoginScreen> {
                   ),
                 ],
               ),
-
               const SizedBox(height: 18),
-
               SizedBox(
                 width: double.infinity,
                 height: 58,
@@ -296,16 +310,14 @@ class _LoginScreenState extends State<LoginScreen> {
                         ),
                 ),
               ),
-
               const SizedBox(height: 28),
-
               const Row(
                 children: [
                   Expanded(child: Divider()),
                   Padding(
                     padding: EdgeInsets.symmetric(horizontal: 12),
                     child: Text(
-                      'o continúa con',
+                      'o continua con',
                       style: TextStyle(
                         fontSize: 10,
                         fontWeight: FontWeight.w800,
@@ -317,9 +329,7 @@ class _LoginScreenState extends State<LoginScreen> {
                   Expanded(child: Divider()),
                 ],
               ),
-
               const SizedBox(height: 20),
-
               SizedBox(
                 width: double.infinity,
                 height: 54,
@@ -357,15 +367,13 @@ class _LoginScreenState extends State<LoginScreen> {
                   ),
                 ),
               ),
-
               const SizedBox(height: 22),
-
               Center(
                 child: Wrap(
                   alignment: WrapAlignment.center,
                   children: [
                     const Text(
-                      '¿No tienes una cuenta? ',
+                      'No tienes una cuenta? ',
                       style: TextStyle(fontSize: 14, color: softTextColor),
                     ),
                     GestureDetector(
@@ -373,7 +381,7 @@ class _LoginScreenState extends State<LoginScreen> {
                         Navigator.pushNamed(context, '/register');
                       },
                       child: const Text(
-                        'Regístrate gratis',
+                        'Registrate gratis',
                         style: TextStyle(
                           fontSize: 14,
                           fontWeight: FontWeight.w800,
@@ -384,12 +392,10 @@ class _LoginScreenState extends State<LoginScreen> {
                   ],
                 ),
               ),
-
               const SizedBox(height: 36),
-
               const Center(
                 child: Text(
-                  '© 2026 EcoRuta Digital Cartography\n\nExplorando las rutas más espectaculares de Costa Rica.',
+                  '© 2026 EcoRuta Digital Cartography\n\nExplorando las rutas mas espectaculares de Costa Rica.',
                   textAlign: TextAlign.center,
                   style: TextStyle(
                     fontSize: 10,

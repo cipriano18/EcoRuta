@@ -1,7 +1,9 @@
 import 'dart:math' as math;
 
+import 'package:collection/collection.dart';
 import 'package:ecoruta/models/geo_edge.dart';
 import 'package:ecoruta/models/geo_node.dart';
+import 'package:ecoruta/models/route_profile.dart';
 import 'package:ecoruta/services/routing/route_result.dart';
 
 enum RoutingPreference { masCorta, masRapida, masDesafiante }
@@ -25,44 +27,39 @@ class AStarRouter {
 
     final adjacency = _buildAdjacency(edges);
 
-    // g: costo real acumulado desde el inicio
     final gScore = <int, double>{startId: 0.0};
-    // f = g + h
-    final fScore = <int, double>{startId: _heuristic(startNode, goalNode)};
-    final cameFrom = <int, int>{};
+    final cameFromEdge = <int, GeoEdge>{};
+    final closed = <int>{};
 
-    final openSet = <int>{startId};
-    final openList = [startId];
+    final openSet = PriorityQueue<_AStarEntry>((a, b) => a.f.compareTo(b.f));
+    openSet.add(_AStarEntry(startId, _heuristic(startNode, goalNode)));
 
-    while (openList.isNotEmpty) {
-      openList.sort(
-        (a, b) => (fScore[a] ?? double.infinity)
-            .compareTo(fScore[b] ?? double.infinity),
-      );
-      final current = openList.removeAt(0);
-      openSet.remove(current);
+    while (openSet.isNotEmpty) {
+      final current = openSet.removeFirst();
 
-      if (current == goalId) {
-        return _reconstructPath(cameFrom, nodeMap, current, gScore[goalId]!);
+      if (closed.contains(current.id)) continue;
+      closed.add(current.id);
+
+      if (current.id == goalId) {
+        return _reconstructPath(cameFromEdge, nodeMap, startId, goalId);
       }
 
-      for (final edge in adjacency[current] ?? const <GeoEdge>[]) {
+      for (final edge in adjacency[current.id] ?? const <GeoEdge>[]) {
+        if (closed.contains(edge.toNodeId)) continue;
         final neighbor = edge.toNodeId;
         if (nodeMap[neighbor] == null) continue;
 
-        final tentativeG =
-            (gScore[current] ?? double.infinity) + _edgeCost(edge, preference);
+        final tentativeG = gScore[current.id]! + _edgeCost(edge, preference);
 
         if (tentativeG < (gScore[neighbor] ?? double.infinity)) {
-          cameFrom[neighbor] = current;
+          cameFromEdge[neighbor] = edge;
           gScore[neighbor] = tentativeG;
-          fScore[neighbor] =
-              tentativeG + _heuristic(nodeMap[neighbor]!, goalNode);
-
-          if (!openSet.contains(neighbor)) {
-            openSet.add(neighbor);
-            openList.add(neighbor);
-          }
+          openSet.add(
+            _AStarEntry(
+              neighbor,
+              tentativeG + _heuristic(nodeMap[neighbor]!, goalNode),
+            ),
+          );
         }
       }
     }
@@ -192,6 +189,16 @@ class AStarRouter {
     }
   }
 
+  // Velocidad base según perfil de actividad.
+  double _baseSpeedMps(RouteProfile profile) {
+    switch (profile) {
+      case RouteProfile.hiking:
+        return 1.11; // 4 km/h
+      case RouteProfile.cycling:
+        return 3.89; // 14 km/h
+    }
+  }
+
   double _heuristic(GeoNode from, GeoNode to) =>
       _haversine(from.latitude, from.longitude, to.latitude, to.longitude);
 
@@ -210,25 +217,37 @@ class AStarRouter {
   double _rad(double deg) => deg * math.pi / 180;
 
   RouteResult _reconstructPath(
-    Map<int, int> cameFrom,
+    Map<int, GeoEdge> cameFromEdge,
     Map<int, GeoNode> nodeMap,
-    int current,
-    double totalDistanceMeters,
+    int startId,
+    int goalId,
   ) {
     final path = <GeoNode>[];
-    var node = current;
-    while (cameFrom.containsKey(node)) {
+    double totalDistance = 0;
+    double totalDuration = 0;
+
+    var node = goalId;
+    while (cameFromEdge.containsKey(node)) {
       path.add(nodeMap[node]!);
-      node = cameFrom[node]!;
+      final edge = cameFromEdge[node]!;
+      totalDistance += edge.distanceMeters;
+      // Tiempo real por tramo: distancia × factor_terreno / velocidad_base
+      totalDuration +=
+          edge.distanceMeters * _speedFactor(edge) / _baseSpeedMps(edge.profile);
+      node = edge.fromNodeId;
     }
     path.add(nodeMap[node]!);
 
-    // Velocidad media de senderismo: 4 km/h ≈ 1.11 m/s
-    const hikingSpeedMps = 1.11;
     return RouteResult(
       path: path.reversed.toList(),
-      totalDistanceMeters: totalDistanceMeters,
-      estimatedDurationSeconds: (totalDistanceMeters / hikingSpeedMps).round(),
+      totalDistanceMeters: totalDistance,
+      estimatedDurationSeconds: totalDuration.round(),
     );
   }
+}
+
+class _AStarEntry {
+  const _AStarEntry(this.id, this.f);
+  final int id;
+  final double f;
 }

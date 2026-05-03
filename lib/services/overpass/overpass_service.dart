@@ -126,21 +126,54 @@ out skel qt;
 
   String _buildWayQuery(RouteProfile profile, String areaSelector) {
     final buffer = StringBuffer();
+    final accessFilter = _accessFilter(profile);
 
     for (final highwayValue in profile.highwayValues) {
-      buffer.writeln('way["highway"="$highwayValue"]$areaSelector;');
+      buffer.writeln(
+        'way["highway"="$highwayValue"]$accessFilter$areaSelector;',
+      );
     }
 
-    if (profile == RouteProfile.hiking) {
-      buffer.writeln('way["foot"="designated"]$areaSelector;');
-    }
-
-    if (profile == RouteProfile.cycling) {
-      buffer.writeln('way["bicycle"="designated"]$areaSelector;');
-      buffer.writeln('way["route"="bicycle"]$areaSelector;');
+    switch (profile) {
+      case RouteProfile.hiking:
+        buffer.writeln(
+          'way["foot"]["foot"!="no"]${_baseExclusionFilter()}$areaSelector;',
+        );
+        break;
+      case RouteProfile.cycling:
+        buffer.writeln(
+          'way["bicycle"]["bicycle"!="no"]${_baseExclusionFilter()}$areaSelector;',
+        );
+        buffer.writeln(
+          'way["cycleway"]${_baseExclusionFilter()}$areaSelector;',
+        );
+        break;
+      case RouteProfile.running:
+        buffer.writeln(
+          'way["foot"]["foot"!="no"]${_baseExclusionFilter()}$areaSelector;',
+        );
+        break;
     }
 
     return buffer.toString();
+  }
+
+  String _accessFilter(RouteProfile profile) {
+    final buffer = StringBuffer(_baseExclusionFilter());
+    switch (profile) {
+      case RouteProfile.hiking:
+      case RouteProfile.running:
+        buffer.write('["foot"!="no"]');
+        break;
+      case RouteProfile.cycling:
+        buffer.write('["bicycle"!="no"]');
+        break;
+    }
+    return buffer.toString();
+  }
+
+  String _baseExclusionFilter() {
+    return '["access"!="private"]["access"!="no"]["motorroad"!="yes"]["area"!="yes"]';
   }
 }
 

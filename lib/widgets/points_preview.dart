@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_map/flutter_map.dart';
 import 'package:latlong2/latlong.dart';
 
+/// Previsualiza en pequeño el origen y destino seleccionados.
 class PointsPreview extends StatelessWidget {
   static const _primaryColor = Color(0xFF012D1D);
   static const _primaryFixed = Color(0xFFC1ECD4);
@@ -228,6 +229,7 @@ class PointsPreview extends StatelessWidget {
   }
 }
 
+/// Fila de texto para mostrar una ubicación seleccionada.
 class _LocationRow extends StatelessWidget {
   const _LocationRow({
     required this.label,
@@ -279,6 +281,7 @@ class _LocationRow extends StatelessWidget {
   }
 }
 
+/// Marcador visual del punto de inicio en la miniatura del mapa.
 class _StartMarker extends StatelessWidget {
   const _StartMarker();
 
@@ -325,6 +328,7 @@ class _StartMarker extends StatelessWidget {
   }
 }
 
+/// Marcador visual del punto de destino en la miniatura del mapa.
 class _DestinationMarker extends StatelessWidget {
   const _DestinationMarker();
 

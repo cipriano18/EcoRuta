@@ -1,9 +1,17 @@
 import 'package:flutter/material.dart';
 
+/// Presenta una métrica de ruta con icono, valor y unidad.
 class RouteMetric extends StatelessWidget {
+  /// Ícono que refuerza visualmente el tipo de métrica.
   final IconData icon;
+
+  /// Etiqueta corta de la métrica.
   final String label;
+
+  /// Valor principal a destacar.
   final String value;
+
+  /// Unidad que contextualiza el valor mostrado.
   final String unit;
 
   const RouteMetric({

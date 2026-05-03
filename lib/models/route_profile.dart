@@ -1,8 +1,10 @@
+/// Define el tipo de actividad para filtrar y calcular rutas compatibles.
 enum RouteProfile {
   hiking,
   cycling,
   running;
 
+  /// Valor persistible que se usa en consultas y documentos.
   String get label {
     switch (this) {
       case RouteProfile.hiking:
@@ -14,6 +16,7 @@ enum RouteProfile {
     }
   }
 
+  /// Valores de `route=*` aceptados para el perfil en Overpass.
   List<String> get routeValues {
     switch (this) {
       case RouteProfile.hiking:
@@ -25,6 +28,7 @@ enum RouteProfile {
     }
   }
 
+  /// Tipos de `highway=*` permitidos para construir el grafo.
   List<String> get highwayValues {
     switch (this) {
       case RouteProfile.hiking:
@@ -65,6 +69,7 @@ enum RouteProfile {
     }
   }
 
+  /// Distancia recomendada en línea recta antes de advertir al usuario.
   double get maxRecommendedDistanceKm {
     switch (this) {
       case RouteProfile.hiking:

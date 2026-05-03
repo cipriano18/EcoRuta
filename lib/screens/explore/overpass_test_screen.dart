@@ -6,6 +6,7 @@ import 'package:flutter_map/flutter_map.dart';
 import 'package:latlong2/latlong.dart';
 import 'package:provider/provider.dart';
 
+/// Herramienta visual para inspeccionar el grafo y respuestas de Overpass.
 class OverpassTestScreen extends StatefulWidget {
   const OverpassTestScreen({super.key});
 
@@ -35,13 +36,17 @@ class _OverpassTestScreenState extends State<OverpassTestScreen> {
     super.dispose();
   }
 
+  /// Ejecuta una prueba completa de descarga y construcción del grafo.
   Future<void> _runOverpassTest() async {
     final startLat = double.tryParse(_startLatController.text.trim());
     final startLng = double.tryParse(_startLngController.text.trim());
     final endLat = double.tryParse(_endLatController.text.trim());
     final endLng = double.tryParse(_endLngController.text.trim());
 
-    if (startLat == null || startLng == null || endLat == null || endLng == null) {
+    if (startLat == null ||
+        startLng == null ||
+        endLat == null ||
+        endLng == null) {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
           content: Text('Ingresa coordenadas válidas para inicio y destino.'),
@@ -138,11 +143,7 @@ class _OverpassTestScreenState extends State<OverpassTestScreen> {
           const SizedBox(height: 6),
           const Text(
             'Esto consulta Overpass dentro del bounding box formado entre inicio y destino.',
-            style: TextStyle(
-              fontSize: 13,
-              color: Colors.grey,
-              height: 1.4,
-            ),
+            style: TextStyle(fontSize: 13, color: Colors.grey, height: 1.4),
           ),
           const SizedBox(height: 18),
           DropdownButtonFormField<RouteProfile>(
@@ -288,11 +289,11 @@ class _OverpassTestScreenState extends State<OverpassTestScreen> {
                 backgroundColor: _surfaceLow,
                 foregroundColor: _primaryColor,
               ),
-                _StatChip(
-                  label: 'Ways',
-                  value: '${exploreProvider.rawWays.length}',
-                  backgroundColor: _surfaceLow,
-                  foregroundColor: _primaryColor,
+              _StatChip(
+                label: 'Ways',
+                value: '${exploreProvider.rawWays.length}',
+                backgroundColor: _surfaceLow,
+                foregroundColor: _primaryColor,
               ),
             ],
           ),
@@ -368,9 +369,11 @@ class _OverpassTestScreenState extends State<OverpassTestScreen> {
             )
           else
             ...previewWays.map((way) {
-              final tags = (way['tags'] as Map?)?.map(
-                (key, value) => MapEntry(key.toString(), value.toString()),
-              ) ?? <String, String>{};
+              final tags =
+                  (way['tags'] as Map?)?.map(
+                    (key, value) => MapEntry(key.toString(), value.toString()),
+                  ) ??
+                  <String, String>{};
 
               return Container(
                 margin: const EdgeInsets.only(bottom: 12),
@@ -557,11 +560,9 @@ class _OverpassTestScreenState extends State<OverpassTestScreen> {
   }
 }
 
+/// Fila compacta para mostrar datos de diagnóstico clave-valor.
 class _DebugLine extends StatelessWidget {
-  const _DebugLine({
-    required this.label,
-    required this.value,
-  });
+  const _DebugLine({required this.label, required this.value});
 
   final String label;
   final String value;
@@ -597,6 +598,7 @@ class _DebugLine extends StatelessWidget {
   }
 }
 
+/// Vista rápida del grafo y la ruta calculada sobre el mapa.
 class _MapPreviewCard extends StatelessWidget {
   const _MapPreviewCard({
     required this.startPoint,
@@ -708,6 +710,7 @@ class _MapPreviewCard extends StatelessWidget {
   }
 }
 
+/// Marcador simple usado en el mapa de pruebas.
 class _PointMarker extends StatelessWidget {
   const _PointMarker({required this.icon, required this.color});
 
@@ -734,6 +737,7 @@ class _PointMarker extends StatelessWidget {
   }
 }
 
+/// Chip visual para estadísticas resumidas del grafo.
 class _StatChip extends StatelessWidget {
   const _StatChip({
     required this.label,
@@ -763,7 +767,7 @@ class _StatChip extends StatelessWidget {
             style: TextStyle(
               fontSize: 10,
               fontWeight: FontWeight.w800,
-                color: foregroundColor.withValues(alpha: 0.7),
+              color: foregroundColor.withValues(alpha: 0.7),
               letterSpacing: 1.2,
             ),
           ),
@@ -782,6 +786,7 @@ class _StatChip extends StatelessWidget {
   }
 }
 
+/// Etiqueta compacta para representar tags de OSM.
 class _MiniTag extends StatelessWidget {
   const _MiniTag({required this.label, required this.value});
 

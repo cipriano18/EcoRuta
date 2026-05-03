@@ -4,17 +4,16 @@ import 'dart:convert';
 import 'package:ecoruta/models/route_profile.dart';
 import 'package:http/http.dart' as http;
 
+/// Administra la construcción y ejecución de consultas contra Overpass.
 class OverpassService {
-  OverpassService({
-    http.Client? client,
-    String? endpoint,
-  }) : _client = client ?? http.Client(),
-       _endpoint =
-           endpoint ?? 'https://overpass-api.de/api/interpreter';
+  OverpassService({http.Client? client, String? endpoint})
+    : _client = client ?? http.Client(),
+      _endpoint = endpoint ?? 'https://overpass-api.de/api/interpreter';
 
   final http.Client _client;
   final String _endpoint;
 
+  /// Ejecuta una consulta cruda y valida el formato básico de la respuesta.
   Future<Map<String, dynamic>> executeRawQuery(String query) async {
     final response = await _client
         .post(
@@ -43,6 +42,7 @@ class OverpassService {
     return decoded;
   }
 
+  /// Descarga datos OSM dentro de un bounding box para el perfil indicado.
   Future<Map<String, dynamic>> fetchRoutesInBoundingBox({
     required double south,
     required double west,
@@ -61,6 +61,7 @@ class OverpassService {
     return executeRawQuery(query);
   }
 
+  /// Descarga datos OSM alrededor de un punto y radio dados.
   Future<Map<String, dynamic>> fetchRoutesAroundPoint({
     required double latitude,
     required double longitude,
@@ -77,6 +78,7 @@ class OverpassService {
     return executeRawQuery(query);
   }
 
+  /// Construye una consulta Overpass basada en un bounding box.
   String buildBoundingBoxQuery({
     required double south,
     required double west,
@@ -97,6 +99,7 @@ out skel qt;
 ''';
   }
 
+  /// Construye una consulta Overpass centrada en un punto.
   String buildAroundPointQuery({
     required double latitude,
     required double longitude,
@@ -177,6 +180,7 @@ out skel qt;
   }
 }
 
+/// Representa fallas controladas al interactuar con Overpass.
 class OverpassException implements Exception {
   const OverpassException(this.message);
 

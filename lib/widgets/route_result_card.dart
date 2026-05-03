@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 
+/// Tarjeta que resume el resultado de una ruta calculada o destacada.
 class RouteResultCard extends StatelessWidget {
   static const _primaryColor = Color(0xFF012D1D);
   static const _secondaryContainer = Color(0xFFAEEECB);
@@ -198,6 +199,7 @@ class RouteResultCard extends StatelessWidget {
   }
 }
 
+/// Chip compacto para mostrar una métrica secundaria de la ruta.
 class _MetricChip extends StatelessWidget {
   const _MetricChip({
     required this.icon,

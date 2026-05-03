@@ -6,23 +6,21 @@ import 'package:provider/provider.dart';
 
 import 'routes/app_routes.dart';
 
+/// Inicializa Firebase y registra los providers globales de la app.
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
 
-  await Firebase.initializeApp(
-    options: DefaultFirebaseOptions.currentPlatform,
-  );
+  await Firebase.initializeApp(options: DefaultFirebaseOptions.currentPlatform);
 
   runApp(
     MultiProvider(
-      providers: [
-        ChangeNotifierProvider(create: (_) => UserProvider()),
-      ],
+      providers: [ChangeNotifierProvider(create: (_) => UserProvider())],
       child: const EcoRutaApp(),
     ),
   );
 }
 
+/// Widget raíz encargado de configurar tema y navegación principal.
 class EcoRutaApp extends StatelessWidget {
   const EcoRutaApp({super.key});
 
@@ -41,7 +39,10 @@ class EcoRutaApp extends StatelessWidget {
         fontFamily: 'Arial',
       ),
       initialRoute: AppRoutes.home,
+
+      //initialRoute: AppRoutes.overpassTest,
       routes: AppRoutes.routes,
     );
   }
 }
+

@@ -1,9 +1,12 @@
-import 'package:ecoruta/models/saved_route_item.dart';
+import 'package:ecoruta/models/stored_route.dart';
+import 'package:ecoruta/screens/explore/route_preview_screen.dart';
+import 'package:ecoruta/services/saved_routes_service.dart';
 import 'package:ecoruta/widgets/app_header.dart';
 import 'package:ecoruta/widgets/confirm_dialog.dart';
 import 'package:ecoruta/widgets/my_route_card.dart';
 import 'package:flutter/material.dart';
 
+/// Pantalla que lista las rutas guardadas del usuario autenticado.
 class MyRoutesScreen extends StatefulWidget {
   const MyRoutesScreen({super.key});
 
@@ -23,49 +26,19 @@ class _MyRoutesScreenState extends State<MyRoutesScreen> {
     'Running',
   ];
 
-  late final List<SavedRouteItem> _savedRoutes = [
-    const SavedRouteItem(
-      id: 'quetzal',
-      title: 'Senda del Quetzal',
-      location: 'Monteverde, Puntarenas',
-      distance: '8.4 km',
-      elevation: '420 m',
-      time: '2h 15m',
-      icon: Icons.directions_run,
-      activityType: 'Running',
-    ),
-    const SavedRouteItem(
-      id: 'arenal',
-      title: 'Circuito Volcan Arenal',
-      location: 'La Fortuna, Alajuela',
-      distance: '22.1 km',
-      elevation: '680 m',
-      time: '1h 45m',
-      icon: Icons.directions_bike,
-      activityType: 'Ciclismo',
-    ),
-    const SavedRouteItem(
-      id: 'pacifico',
-      title: 'Costa del Pacifico',
-      location: 'Manuel Antonio, Quepos',
-      distance: '5.2 km',
-      elevation: '120 m',
-      time: '1h 10m',
-      icon: Icons.hiking,
-      activityType: 'Senderismo',
-    ),
-  ];
+  final SavedRoutesService _savedRoutesService = SavedRoutesService();
 
   String _selectedFilter = _allFilter;
 
-  List<SavedRouteItem> get _visibleRoutes {
-    if (_selectedFilter == _allFilter) return _savedRoutes;
-    return _savedRoutes
-        .where((route) => route.activityType == _selectedFilter)
-        .toList();
+  List<StoredRoute> _filterRoutes(List<StoredRoute> routes) {
+    if (_selectedFilter == _allFilter) return routes;
+    return routes
+        .where((route) => route.activityLabel == _selectedFilter)
+        .toList(growable: false);
   }
 
-  Future<void> _removeRoute(SavedRouteItem route) async {
+  /// Elimina una ruta tras confirmar la intención del usuario.
+  Future<void> _removeRoute(StoredRoute route) async {
     final confirmed = await ConfirmDialog.mostrar(
       context,
       titulo: 'Eliminar ruta',
@@ -75,25 +48,84 @@ class _MyRoutesScreenState extends State<MyRoutesScreen> {
 
     if (!confirmed || !mounted) return;
 
-    setState(() {
-      _savedRoutes.removeWhere((item) => item.id == route.id);
-    });
+    try {
+      await _savedRoutesService.deleteRoute(route.id);
+    } on SavedRouteException catch (error) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text(error.message)));
+    }
+  }
+
+  /// Alterna entre visibilidad pública y privada para una ruta guardada.
+  Future<void> _toggleVisibility(StoredRoute route) async {
+    final nextVisibility = route.isPublic
+        ? StoredRouteVisibility.private
+        : StoredRouteVisibility.public;
+
+    try {
+      await _savedRoutesService.updateVisibility(
+        routeId: route.id,
+        visibility: nextVisibility,
+      );
+
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(
+            route.isPublic
+                ? 'La ruta ahora es privada.'
+                : 'La ruta ahora es publica.',
+          ),
+        ),
+      );
+    } on SavedRouteException catch (error) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text(error.message)));
+    }
+  }
+
+  /// Abre la ruta guardada reconstruida desde Firestore.
+  void _openRoute(StoredRoute route) {
+    Navigator.of(context).push(
+      MaterialPageRoute(
+        builder: (_) => RoutePreviewScreen(
+          title: route.title,
+          route: route.toRouteResult(),
+        ),
+      ),
+    );
   }
 
   @override
   Widget build(BuildContext context) {
-    final visibleRoutes = _visibleRoutes;
-
     return Scaffold(
       backgroundColor: surfaceColor,
       appBar: const AppHeader(backgroundColor: surfaceColor),
       body: SafeArea(
-        child: Stack(
-          children: [
-            ListView(
+        child: StreamBuilder<List<StoredRoute>>(
+          stream: _savedRoutesService.watchUserRoutes(),
+          builder: (context, snapshot) {
+            if (snapshot.hasError) {
+              return _buildErrorState();
+            }
+
+            if (!snapshot.hasData) {
+              return const Center(
+                child: CircularProgressIndicator(color: primaryColor),
+              );
+            }
+
+            final routes = snapshot.data ?? const <StoredRoute>[];
+            final visibleRoutes = _filterRoutes(routes);
+
+            return ListView(
               padding: const EdgeInsets.fromLTRB(20, 20, 20, 100),
               children: [
-                _buildHeader(savedRoutesCount: _savedRoutes.length),
+                _buildHeader(savedRoutesCount: routes.length),
                 const SizedBox(height: 24),
                 _buildFilters(),
                 const SizedBox(height: 20),
@@ -103,32 +135,14 @@ class _MyRoutesScreenState extends State<MyRoutesScreen> {
                   ...visibleRoutes.map(
                     (route) => MyRouteCard(
                       route: route,
+                      onOpen: () => _openRoute(route),
                       onDelete: () => _removeRoute(route),
+                      onToggleVisibility: () => _toggleVisibility(route),
                     ),
                   ),
               ],
-            ),
-            Positioned(
-              bottom: 20,
-              right: 20,
-              child: ElevatedButton.icon(
-                style: ElevatedButton.styleFrom(
-                  backgroundColor: primaryColor,
-                  foregroundColor: Colors.white,
-                  padding: const EdgeInsets.symmetric(
-                    horizontal: 16,
-                    vertical: 14,
-                  ),
-                  shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(18),
-                  ),
-                ),
-                onPressed: () {},
-                icon: const Icon(Icons.add_location_alt),
-                label: const Text('Crear mi ruta'),
-              ),
-            ),
-          ],
+            );
+          },
         ),
       ),
     );
@@ -171,7 +185,7 @@ class _MyRoutesScreenState extends State<MyRoutesScreen> {
         ),
         const SizedBox(height: 10),
         const Text(
-          'Revive tus aventuras favoritas o planifica tu proximo desafio.',
+          'Revive tus rutas guardadas y decide si compartirlas o mantenerlas privadas.',
           style: TextStyle(color: Colors.black54),
         ),
       ],
@@ -266,11 +280,38 @@ class _MyRoutesScreenState extends State<MyRoutesScreen> {
           ),
           SizedBox(height: 8),
           Text(
-            'Prueba con otra actividad o agrega nuevas rutas a tu biblioteca.',
+            'Guarda una ruta desde Explorar para verla aqui.',
             textAlign: TextAlign.center,
             style: TextStyle(color: Colors.black54, height: 1.4),
           ),
         ],
+      ),
+    );
+  }
+
+  Widget _buildErrorState() {
+    return Center(
+      child: Padding(
+        padding: const EdgeInsets.all(24),
+        child: Container(
+          padding: const EdgeInsets.all(20),
+          decoration: BoxDecoration(
+            color: Colors.white,
+            borderRadius: BorderRadius.circular(22),
+          ),
+          child: const Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Icon(Icons.error_outline, color: Colors.redAccent, size: 40),
+              SizedBox(height: 10),
+              Text(
+                'No se pudieron cargar tus rutas guardadas.',
+                textAlign: TextAlign.center,
+                style: TextStyle(fontWeight: FontWeight.w700),
+              ),
+            ],
+          ),
+        ),
       ),
     );
   }

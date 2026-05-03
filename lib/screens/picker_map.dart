@@ -7,6 +7,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_map/flutter_map.dart';
 import 'package:latlong2/latlong.dart';
 
+/// Pantalla para elegir origen y destino directamente sobre el mapa.
 class PickerMapScreen extends StatefulWidget {
   const PickerMapScreen({
     super.key,
@@ -65,6 +66,7 @@ class _PickerMapScreenState extends State<PickerMapScreen> {
     super.dispose();
   }
 
+  /// Recupera etiquetas iniciales para no mostrar coordenadas cuando ya existen.
   Future<void> _hydrateInitialLabels() async {
     if (_selectedStartPoint != null) {
       final startLabel = await _reverseGeocode(_selectedStartPoint!);
@@ -331,6 +333,7 @@ class _PickerMapScreenState extends State<PickerMapScreen> {
     });
   }
 
+  /// Busca sugerencias y recentra el mapa según el texto ingresado.
   Future<void> _searchAndCenter() async {
     if (_searchController.text.trim().isEmpty) return;
     final suggestions = await _searchPlaces(_searchController.text);
@@ -338,6 +341,7 @@ class _PickerMapScreenState extends State<PickerMapScreen> {
     _moveMapToSuggestion(suggestions.first);
   }
 
+  /// Consulta lugares remotos para ayudar a posicionar inicio y destino.
   Future<List<_PlaceSuggestion>> _searchPlaces(String query) async {
     setState(() => _isSearching = true);
 
@@ -391,6 +395,7 @@ class _PickerMapScreenState extends State<PickerMapScreen> {
     }
   }
 
+  /// Aplica un punto al origen o destino activo y actualiza su etiqueta.
   Future<void> _selectPoint(LatLng point) async {
     final label = await _reverseGeocode(point);
     if (!mounted) return;
@@ -423,6 +428,7 @@ class _PickerMapScreenState extends State<PickerMapScreen> {
     await _selectPoint(current);
   }
 
+  /// Confirma la selección actual y devuelve el resultado a la pantalla previa.
   void _applySelection() {
     Navigator.of(context).pop(
       PointsSelectionResult(
@@ -479,6 +485,7 @@ class _PickerMapScreenState extends State<PickerMapScreen> {
   }
 }
 
+/// Resultado devuelto al cerrar el selector de puntos.
 class PointsSelectionResult {
   const PointsSelectionResult({
     required this.startPoint,
@@ -607,7 +614,6 @@ class _PlaceSuggestion {
     );
   }
 }
-
 
 /*
 Esta pantalla se usa para seleccionar el 

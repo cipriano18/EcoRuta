@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 
 /// Dialogo de confirmacion reutilizable para distintas acciones.
+/// Diálogo reutilizable para confirmar acciones potencialmente destructivas.
 class ConfirmDialog extends StatelessWidget {
   const ConfirmDialog({
     super.key,

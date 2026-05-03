@@ -1,6 +1,7 @@
 import 'package:ecoruta/services/auth_service.dart';
 import 'package:flutter/material.dart';
 
+/// Pantalla de seguridad para actualizar la contraseña del usuario.
 class ChangePasswordScreen extends StatefulWidget {
   const ChangePasswordScreen({super.key});
 
@@ -29,6 +30,7 @@ class _ChangePasswordScreenState extends State<ChangePasswordScreen> {
     super.dispose();
   }
 
+  /// Valida entradas y delega el cambio de contraseña al servicio.
   Future<void> _changePassword() async {
     final currentPassword = _currentPasswordController.text.trim();
     final newPassword = _newPasswordController.text.trim();

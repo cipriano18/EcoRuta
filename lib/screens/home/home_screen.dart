@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:video_player/video_player.dart';
 
+/// Pantalla de bienvenida que introduce la propuesta visual de la app.
 class HomeScreen extends StatefulWidget {
   const HomeScreen({super.key});
 
@@ -231,6 +232,7 @@ class _HomeScreenState extends State<HomeScreen> {
 }
 
 // ── Widget tarjeta bento ─────────────────────────────────────────────────────
+/// Tarjeta decorativa usada para resumir beneficios principales.
 class _BentoCard extends StatelessWidget {
   final IconData icon;
   final Color iconColor;

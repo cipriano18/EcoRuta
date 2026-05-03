@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 
+/// Reúne la configuración visual compartida por la aplicación.
 class AppTheme {
   // ── Paleta ─────────────────────────────────────────────────────────────────
   static const Color background = Color(0xFFF7F8FC); // Gris azulado muy suave
@@ -14,6 +15,7 @@ class AppTheme {
   static const Color textMuted = Color(0xFF8A9A8E); // Gris verdoso
 
   // ── Tema principal ─────────────────────────────────────────────────────────
+  /// Tema claro principal usado por la app.
   static ThemeData get light {
     return ThemeData(
       useMaterial3: true,

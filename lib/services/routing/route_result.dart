@@ -1,5 +1,6 @@
 import 'package:ecoruta/models/geo_node.dart';
 
+/// Contiene el resultado final de una búsqueda de ruta.
 class RouteResult {
   const RouteResult({
     required this.path,
@@ -8,13 +9,22 @@ class RouteResult {
     this.elevationGainMeters = 0,
   });
 
+  /// Secuencia ordenada de nodos que componen la ruta.
   final List<GeoNode> path;
+
+  /// Distancia total recorrida en metros.
   final double totalDistanceMeters;
+
+  /// Duración estimada total en segundos.
   final int estimatedDurationSeconds;
+
+  /// Desnivel positivo acumulado del recorrido.
   final double elevationGainMeters;
 
+  /// Indica si la ruta no contiene nodos utilizables.
   bool get isEmpty => path.isEmpty;
 
+  /// Distancia total lista para mostrar en la UI.
   String get formattedDistance {
     if (totalDistanceMeters >= 1000) {
       return '${(totalDistanceMeters / 1000).toStringAsFixed(1)} km';
@@ -22,6 +32,7 @@ class RouteResult {
     return '${totalDistanceMeters.round()} m';
   }
 
+  /// Duración estimada formateada para lectura humana.
   String get formattedDuration {
     final hours = estimatedDurationSeconds ~/ 3600;
     final minutes = (estimatedDurationSeconds % 3600) ~/ 60;
@@ -31,8 +42,10 @@ class RouteResult {
     return '${minutes}m';
   }
 
+  /// Desnivel positivo formateado para tarjetas y detalles.
   String get formattedElevationGain => '+${elevationGainMeters.round()} m';
 
+  /// Sustituye el camino por una versión enriquecida con elevación real.
   RouteResult withElevation(List<GeoNode> enrichedPath) {
     return RouteResult(
       path: enrichedPath,

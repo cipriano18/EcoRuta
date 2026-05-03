@@ -1,28 +1,53 @@
 import 'package:ecoruta/models/geo_node.dart';
+import 'package:ecoruta/models/route_profile.dart';
+import 'package:ecoruta/models/stored_route.dart';
+import 'package:ecoruta/navigation/main_shell.dart';
+import 'package:ecoruta/services/routing/a_star_router.dart';
 import 'package:ecoruta/services/routing/route_result.dart';
+import 'package:ecoruta/services/saved_routes_service.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_map/flutter_map.dart';
 import 'package:latlong2/latlong.dart';
 
-class RoutePreviewScreen extends StatelessWidget {
+/// Presenta la geometría y métricas de una ruta ya calculada.
+class RoutePreviewScreen extends StatefulWidget {
   const RoutePreviewScreen({
     super.key,
     required this.title,
     required this.route,
+    this.profile,
+    this.preference,
+    this.startLabel,
+    this.endLabel,
+    this.allowSave = false,
   });
 
   final String title;
   final RouteResult route;
+  final RouteProfile? profile;
+  final RoutingPreference? preference;
+  final String? startLabel;
+  final String? endLabel;
+  final bool allowSave;
 
+  @override
+  State<RoutePreviewScreen> createState() => _RoutePreviewScreenState();
+}
+
+class _RoutePreviewScreenState extends State<RoutePreviewScreen> {
   static const _primaryColor = Color(0xFF012D1D);
   static const _accentColor = Color(0xFFFF7043);
 
+  final SavedRoutesService _savedRoutesService = SavedRoutesService();
+
+  bool _isSaving = false;
+
   @override
   Widget build(BuildContext context) {
-    final points = route.path
+    final points = widget.route.path
         .map((node) => LatLng(node.latitude, node.longitude))
         .toList(growable: false);
-    final bounds = _boundsForRoute(route.path);
+    final bounds = _boundsForRoute(widget.route.path);
     final startPoint = points.isNotEmpty ? points.first : null;
     final endPoint = points.length > 1 ? points.last : startPoint;
 
@@ -31,13 +56,30 @@ class RoutePreviewScreen extends StatelessWidget {
       appBar: AppBar(
         backgroundColor: const Color(0xFFF8F9FA),
         title: Text(
-          title,
+          widget.title,
           style: const TextStyle(
             color: _primaryColor,
             fontWeight: FontWeight.w800,
           ),
         ),
         iconTheme: const IconThemeData(color: _primaryColor),
+        actions: [
+          if (widget.allowSave)
+            Padding(
+              padding: const EdgeInsets.only(right: 8),
+              child: TextButton.icon(
+                onPressed: _isSaving ? null : _saveRoute,
+                icon: _isSaving
+                    ? const SizedBox(
+                        width: 16,
+                        height: 16,
+                        child: CircularProgressIndicator(strokeWidth: 2),
+                      )
+                    : const Icon(Icons.bookmark_add_outlined),
+                label: const Text('Guardar'),
+              ),
+            ),
+        ],
       ),
       body: Column(
         children: [
@@ -57,7 +99,8 @@ class RoutePreviewScreen extends StatelessWidget {
                   ),
                   children: [
                     TileLayer(
-                      urlTemplate: 'https://tile.openstreetmap.org/{z}/{x}/{y}.png',
+                      urlTemplate:
+                          'https://tile.openstreetmap.org/{z}/{x}/{y}.png',
                       userAgentPackageName: 'com.example.lab2_moviles',
                     ),
                     PolylineLayer(
@@ -118,15 +161,15 @@ class RoutePreviewScreen extends StatelessWidget {
                 children: [
                   _MetricTile(
                     label: 'Distancia',
-                    value: route.formattedDistance,
+                    value: widget.route.formattedDistance,
                   ),
                   _MetricTile(
                     label: 'Tiempo',
-                    value: route.formattedDuration,
+                    value: widget.route.formattedDuration,
                   ),
                   _MetricTile(
                     label: 'Desnivel',
-                    value: route.formattedElevationGain,
+                    value: widget.route.formattedElevationGain,
                   ),
                 ],
               ),
@@ -135,6 +178,78 @@ class RoutePreviewScreen extends StatelessWidget {
         ],
       ),
     );
+  }
+
+  /// Guarda la ruta actual en Firestore con los metadatos elegidos por el usuario.
+  Future<void> _saveRoute() async {
+    if (widget.profile == null || widget.preference == null) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Faltan datos de la ruta para poder guardarla.'),
+        ),
+      );
+      return;
+    }
+
+    final saveData = await showModalBottomSheet<_SaveRouteFormResult>(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: Colors.transparent,
+      builder: (context) => _SaveRouteSheet(
+        initialTitle: widget.title,
+        startLabel: widget.startLabel ?? 'Origen',
+        endLabel: widget.endLabel ?? 'Destino',
+      ),
+    );
+
+    if (saveData == null || !mounted) return;
+
+    setState(() => _isSaving = true);
+
+    try {
+      await _savedRoutesService.saveRoute(
+        title: saveData.title,
+        description: saveData.description,
+        visibility: saveData.visibility,
+        activityProfile: widget.profile!,
+        routingPreference: widget.preference!,
+        startLabel: widget.startLabel ?? 'Origen',
+        endLabel: widget.endLabel ?? 'Destino',
+        route: widget.route,
+      );
+
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: const Text('Ruta guardada en Mis rutas.'),
+          action: SnackBarAction(
+            label: 'Ver',
+            onPressed: () {
+              final switched = MainShell.navigateToTab(context, 2);
+              if (switched) {
+                Navigator.of(context).popUntil((route) => route.isFirst);
+              }
+            },
+          ),
+        ),
+      );
+    } on SavedRouteException catch (error) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text(error.message)));
+    } catch (_) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('No se pudo guardar la ruta. Intenta de nuevo.'),
+        ),
+      );
+    } finally {
+      if (mounted) {
+        setState(() => _isSaving = false);
+      }
+    }
   }
 
   LatLngBounds _boundsForRoute(List<GeoNode> path) {
@@ -157,10 +272,7 @@ class RoutePreviewScreen extends StatelessWidget {
       if (node.longitude > maxLon) maxLon = node.longitude;
     }
 
-    return LatLngBounds(
-      LatLng(minLat, minLon),
-      LatLng(maxLat, maxLon),
-    );
+    return LatLngBounds(LatLng(minLat, minLon), LatLng(maxLat, maxLon));
   }
 
   LatLng _centerForBounds(LatLngBounds bounds) {
@@ -171,6 +283,168 @@ class RoutePreviewScreen extends StatelessWidget {
   }
 }
 
+/// Resultado intermedio del formulario para guardar rutas.
+class _SaveRouteFormResult {
+  const _SaveRouteFormResult({
+    required this.title,
+    required this.description,
+    required this.visibility,
+  });
+
+  final String title;
+  final String description;
+  final StoredRouteVisibility visibility;
+}
+
+/// Hoja modal que recopila título, descripción y visibilidad de una ruta.
+class _SaveRouteSheet extends StatefulWidget {
+  const _SaveRouteSheet({
+    required this.initialTitle,
+    required this.startLabel,
+    required this.endLabel,
+  });
+
+  final String initialTitle;
+  final String startLabel;
+  final String endLabel;
+
+  @override
+  State<_SaveRouteSheet> createState() => _SaveRouteSheetState();
+}
+
+class _SaveRouteSheetState extends State<_SaveRouteSheet> {
+  late final TextEditingController _titleController;
+  final TextEditingController _descriptionController = TextEditingController();
+  StoredRouteVisibility _visibility = StoredRouteVisibility.private;
+
+  @override
+  void initState() {
+    super.initState();
+    _titleController = TextEditingController(text: widget.initialTitle);
+  }
+
+  @override
+  void dispose() {
+    _titleController.dispose();
+    _descriptionController.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final bottomInset = MediaQuery.of(context).viewInsets.bottom;
+
+    return Padding(
+      padding: EdgeInsets.only(bottom: bottomInset),
+      child: Container(
+        decoration: const BoxDecoration(
+          color: Colors.white,
+          borderRadius: BorderRadius.vertical(top: Radius.circular(28)),
+        ),
+        padding: const EdgeInsets.fromLTRB(20, 20, 20, 24),
+        child: SafeArea(
+          top: false,
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              const Text(
+                'Guardar ruta',
+                style: TextStyle(
+                  fontSize: 24,
+                  fontWeight: FontWeight.w900,
+                  color: Color(0xFF012D1D),
+                ),
+              ),
+              const SizedBox(height: 8),
+              Text(
+                '${widget.startLabel} -> ${widget.endLabel}',
+                style: const TextStyle(color: Colors.black54),
+              ),
+              const SizedBox(height: 20),
+              TextField(
+                controller: _titleController,
+                decoration: InputDecoration(
+                  labelText: 'Titulo',
+                  border: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(16),
+                  ),
+                ),
+              ),
+              const SizedBox(height: 14),
+              TextField(
+                controller: _descriptionController,
+                maxLines: 3,
+                decoration: InputDecoration(
+                  labelText: 'Descripcion (opcional)',
+                  border: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(16),
+                  ),
+                ),
+              ),
+              const SizedBox(height: 18),
+              const Text(
+                'Visibilidad',
+                style: TextStyle(fontWeight: FontWeight.w800),
+              ),
+              const SizedBox(height: 10),
+              SegmentedButton<StoredRouteVisibility>(
+                segments: const [
+                  ButtonSegment(
+                    value: StoredRouteVisibility.private,
+                    icon: Icon(Icons.lock_outline),
+                    label: Text('Privada'),
+                  ),
+                  ButtonSegment(
+                    value: StoredRouteVisibility.public,
+                    icon: Icon(Icons.public),
+                    label: Text('Publica'),
+                  ),
+                ],
+                selected: {_visibility},
+                onSelectionChanged: (selection) {
+                  setState(() => _visibility = selection.first);
+                },
+              ),
+              const SizedBox(height: 20),
+              SizedBox(
+                width: double.infinity,
+                child: FilledButton(
+                  onPressed: _submit,
+                  style: FilledButton.styleFrom(
+                    backgroundColor: const Color(0xFF012D1D),
+                    padding: const EdgeInsets.symmetric(vertical: 16),
+                  ),
+                  child: const Text('Guardar en Mis rutas'),
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  void _submit() {
+    final title = _titleController.text.trim();
+    if (title.isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Agrega un titulo para la ruta.')),
+      );
+      return;
+    }
+
+    Navigator.of(context).pop(
+      _SaveRouteFormResult(
+        title: title,
+        description: _descriptionController.text.trim(),
+        visibility: _visibility,
+      ),
+    );
+  }
+}
+
+/// Marcador simple para señalar inicio o fin del recorrido.
 class _RoutePointMarker extends StatelessWidget {
   const _RoutePointMarker({required this.icon, required this.color});
 
@@ -197,11 +471,9 @@ class _RoutePointMarker extends StatelessWidget {
   }
 }
 
+/// Muestra una métrica resumida dentro de la vista previa.
 class _MetricTile extends StatelessWidget {
-  const _MetricTile({
-    required this.label,
-    required this.value,
-  });
+  const _MetricTile({required this.label, required this.value});
 
   final String label;
   final String value;

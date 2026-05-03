@@ -10,6 +10,7 @@ import 'package:ecoruta/services/routing/a_star_router.dart';
 import 'package:ecoruta/services/routing/route_result.dart';
 import 'package:flutter/foundation.dart';
 
+/// Agrupa la selección de nodos ancla usada para una ruta candidata.
 class _AnchorSelection {
   const _AnchorSelection({
     required this.startNode,
@@ -26,6 +27,7 @@ class _AnchorSelection {
   final double endDistanceMeters;
 }
 
+/// Expone datos de diagnóstico útiles para depurar generación de rutas.
 class RouteDebugInfo {
   const RouteDebugInfo({
     required this.requestedStartLat,
@@ -66,6 +68,7 @@ class RouteDebugInfo {
   final double? shortestRouteDistanceMeters;
 }
 
+/// Gestiona el estado del grafo, la carga remota y las rutas calculadas.
 class ExploreProvider extends ChangeNotifier {
   ExploreProvider({
     OverpassService? overpassService,
@@ -102,12 +105,14 @@ class ExploreProvider extends ChangeNotifier {
   Map<RoutingPreference, RouteResult?> get routes => _routes;
   RouteDebugInfo? get debugInfo => _debugInfo;
 
+  /// Actualiza el perfil activo y notifica cuando cambia el contexto de búsqueda.
   void setProfile(RouteProfile profile) {
     if (_selectedProfile == profile) return;
     _selectedProfile = profile;
     notifyListeners();
   }
 
+  /// Descarga el grafo necesario y calcula rutas entre dos puntos dados.
   Future<void> generateRoutes({
     required double startLat,
     required double startLon,
@@ -195,7 +200,7 @@ class ExploreProvider extends ChangeNotifier {
       );
 
       final rawResults = <RoutingPreference, RouteResult?>{
-        RoutingPreference.masCorta: routeWithElevation,
+        RoutingPreference.shortest: routeWithElevation,
       };
 
       if (rawResults.values.every((result) => result == null)) {
@@ -213,6 +218,7 @@ class ExploreProvider extends ChangeNotifier {
     }
   }
 
+  /// Carga rutas manualmente dentro de un bounding box predefinido.
   Future<void> loadRoutesInBoundingBox({
     required double south,
     required double west,
@@ -244,6 +250,7 @@ class ExploreProvider extends ChangeNotifier {
     }
   }
 
+  /// Carga rutas alrededor de un punto con un radio específico.
   Future<void> loadRoutesAroundPoint({
     required double latitude,
     required double longitude,
@@ -273,6 +280,7 @@ class ExploreProvider extends ChangeNotifier {
     }
   }
 
+  /// Limpia el grafo y los resultados actuales para reiniciar la exploración.
   void clearData() {
     _errorMessage = null;
     _nodes = const [];
@@ -390,7 +398,7 @@ class ExploreProvider extends ChangeNotifier {
           startId: startCandidate.id,
           goalId: endCandidate.id,
           profile: _selectedProfile,
-          preference: RoutingPreference.masCorta,
+          preference: RoutingPreference.shortest,
         );
         if (previewRoute == null || previewRoute.isEmpty) continue;
 
@@ -413,7 +421,9 @@ class ExploreProvider extends ChangeNotifier {
 
   Future<RouteResult> _enrichRouteWithElevation(RouteResult route) async {
     if (route.path.isEmpty) return route;
-    final enrichedPath = await _elevationService.enrichWithElevation(route.path);
+    final enrichedPath = await _elevationService.enrichWithElevation(
+      route.path,
+    );
     return route.withElevation(enrichedPath);
   }
 
@@ -437,12 +447,7 @@ class ExploreProvider extends ChangeNotifier {
     );
   }
 
-  double _distanceBetween(
-    double lat1,
-    double lon1,
-    double lat2,
-    double lon2,
-  ) {
+  double _distanceBetween(double lat1, double lon1, double lat2, double lon2) {
     const radius = 6371000.0;
     final dLat = _degreesToRadians(lat2 - lat1);
     final dLon = _degreesToRadians(lon2 - lon1);

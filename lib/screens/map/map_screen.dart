@@ -14,6 +14,7 @@ import 'package:geolocator/geolocator.dart';
 import 'package:latlong2/latlong.dart';
 import 'package:provider/provider.dart';
 
+/// Pantalla de mapa en vivo con seguimiento, brújula y elevación.
 class MapScreen extends StatefulWidget {
   const MapScreen({super.key});
 
@@ -58,6 +59,7 @@ class _MapScreenState extends State<MapScreen> {
     super.dispose();
   }
 
+  /// Inicializa permisos, posición y flujos necesarios para el mapa en vivo.
   Future<void> _initLocation() async {
     try {
       LocationPermission permission = await Geolocator.checkPermission();
@@ -152,6 +154,7 @@ class _MapScreenState extends State<MapScreen> {
     );
   }
 
+  /// Refresca la elevación visible según la posición actual del usuario.
   Future<void> _refreshElevation() async {
     final currentPosition = _currentPosition;
     if (currentPosition == null) return;
@@ -165,6 +168,7 @@ class _MapScreenState extends State<MapScreen> {
     }
   }
 
+  /// Consulta elevación remota para el punto actual del usuario.
   Future<double> _fetchElevation(LatLng point) async {
     final uri = Uri.https('api.open-meteo.com', '/v1/elevation', {
       'latitude': point.latitude.toString(),
@@ -376,8 +380,8 @@ class _MapScreenState extends State<MapScreen> {
                 },
                 onFinish: () async {
                   try {
-                    final refreshedUser =
-                        await AuthService().registerWeeklyRouteCompletion();
+                    final refreshedUser = await AuthService()
+                        .registerWeeklyRouteCompletion();
                     if (!mounted) return;
 
                     if (refreshedUser != null) {
@@ -402,6 +406,7 @@ class _MapScreenState extends State<MapScreen> {
   }
 }
 
+/// Panel compacto que resume la elevación actual.
 class _ElevationCard extends StatelessWidget {
   const _ElevationCard({required this.elevation, required this.accentColor});
 
@@ -485,6 +490,7 @@ class _ElevationCard extends StatelessWidget {
   }
 }
 
+/// Botón flotante reutilizable para acciones sobre el mapa.
 class _MapButton extends StatelessWidget {
   final IconData icon;
   final VoidCallback? onTap;
@@ -511,9 +517,7 @@ class _MapButton extends StatelessWidget {
               : isActive
               ? const Color(0xFF012D1D)
               : Colors.white.withOpacity(0.92),
-          border: isDisabled
-              ? Border.all(color: Colors.grey.shade400)
-              : null,
+          border: isDisabled ? Border.all(color: Colors.grey.shade400) : null,
           borderRadius: BorderRadius.circular(14),
           boxShadow: [
             BoxShadow(color: Colors.black.withOpacity(0.08), blurRadius: 12),
@@ -533,6 +537,7 @@ class _MapButton extends StatelessWidget {
   }
 }
 
+/// Tarjeta que muestra el estado de la brújula y su orientación.
 class _CompassCard extends StatelessWidget {
   const _CompassCard({required this.heading});
 

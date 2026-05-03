@@ -4,6 +4,7 @@ import 'package:ecoruta/widgets/avatar_image.dart';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
+/// Pantalla para elegir un avatar desbloqueado por progreso del usuario.
 class AvatarPickerScreen extends StatefulWidget {
   const AvatarPickerScreen({super.key, required this.initialAvatarId});
 
@@ -29,6 +30,7 @@ class _AvatarPickerScreenState extends State<AvatarPickerScreen> {
     _selectedAvatarId = widget.initialAvatarId;
   }
 
+  /// Persiste el avatar seleccionado y actualiza el provider global.
   Future<void> _saveAvatar() async {
     final provider = Provider.of<UserProvider>(context, listen: false);
     final user = provider.user;

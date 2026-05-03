@@ -1,8 +1,14 @@
 import 'package:flutter/material.dart';
 
+/// Muestra una sugerencia de lugar seleccionable en búsquedas geográficas.
 class SuggestionItem extends StatelessWidget {
+  /// Nombre principal del resultado.
   final String title;
+
+  /// Contexto secundario del resultado, como provincia o distrito.
   final String subtitle;
+
+  /// Acción que aplica la sugerencia seleccionada.
   final VoidCallback onTap;
 
   const SuggestionItem({
@@ -58,13 +64,3 @@ class SuggestionItem extends StatelessWidget {
     );
   }
 }
-
-
-/*
-widget para mustrar las sugerencias de ubicaciones
-segun lo que escriba el usuario en los imputs de busqueda
-
-Actualmente se usa en:
-picker_map.dart
-search_tab.dart
-*/

@@ -2,6 +2,7 @@ import 'dart:async';
 
 import 'package:flutter/material.dart';
 
+/// Tarjeta de sesión activa para controlar una ruta en curso.
 class ActiveRouteCard extends StatefulWidget {
   final String routeName;
   final VoidCallback? onPause;
@@ -49,6 +50,7 @@ class _ActiveRouteCardState extends State<ActiveRouteCard> {
     super.dispose();
   }
 
+  /// Alterna el estado de pausa sin reiniciar el tiempo acumulado.
   void _togglePauseResume() {
     setState(() {
       _isPaused = !_isPaused;
@@ -67,11 +69,13 @@ class _ActiveRouteCardState extends State<ActiveRouteCard> {
     }
   }
 
+  /// Cancela la sesión actual y notifica al contenedor padre.
   void _cancelRoute() {
     _activeStopwatch.stop();
     widget.onCancel?.call();
   }
 
+  /// Finaliza la sesión activa y entrega el tiempo transcurrido.
   void _finishRoute() {
     _activeStopwatch.stop();
     widget.onFinish?.call();
@@ -195,7 +199,9 @@ class _ActiveRouteCardState extends State<ActiveRouteCard> {
                             shape: BoxShape.circle,
                           ),
                           child: Icon(
-                            _isPaused ? Icons.play_arrow_rounded : Icons.pause_rounded,
+                            _isPaused
+                                ? Icons.play_arrow_rounded
+                                : Icons.pause_rounded,
                             color: Colors.white,
                             size: 22,
                           ),
@@ -225,6 +231,7 @@ class _ActiveRouteCardState extends State<ActiveRouteCard> {
   }
 }
 
+/// Métrica compacta usada dentro de la tarjeta de ruta activa.
 class ActiveRouteMetric extends StatelessWidget {
   final IconData icon;
   final String value;
@@ -241,7 +248,9 @@ class ActiveRouteMetric extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final accentColor = isPaused ? Colors.orange.shade700 : Colors.green.shade700;
+    final accentColor = isPaused
+        ? Colors.orange.shade700
+        : Colors.green.shade700;
 
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),

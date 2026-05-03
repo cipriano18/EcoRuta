@@ -14,6 +14,7 @@ import 'package:geolocator/geolocator.dart';
 import 'package:latlong2/latlong.dart';
 import 'package:provider/provider.dart';
 
+/// Tab que genera rutas entre un origen y un destino elegidos por el usuario.
 class GenerateTab extends StatefulWidget {
   const GenerateTab({super.key});
 
@@ -31,7 +32,7 @@ class _GenerateTabState extends State<GenerateTab> {
 
   final MapController _mapController = MapController();
 
-  static const _selectedPreference = RoutingPreference.masCorta;
+  static const _selectedPreference = RoutingPreference.shortest;
   RouteProfile _selectedProfile = RouteProfile.hiking;
   LatLng? _startPoint;
   LatLng? _destinationPoint;
@@ -47,6 +48,7 @@ class _GenerateTabState extends State<GenerateTab> {
     _initCurrentLocation();
   }
 
+  /// Obtiene la ubicación actual para sugerir un punto de partida inicial.
   Future<void> _initCurrentLocation() async {
     try {
       LocationPermission permission = await Geolocator.checkPermission();
@@ -84,6 +86,7 @@ class _GenerateTabState extends State<GenerateTab> {
     }
   }
 
+  /// Intercambia origen y destino para probar la ruta inversa rápidamente.
   void _swapLocations() {
     setState(() {
       final previousStartPoint = _startPoint;
@@ -96,6 +99,7 @@ class _GenerateTabState extends State<GenerateTab> {
     _syncPreviewMap();
   }
 
+  /// Abre el selector de puntos para definir inicio y destino sobre el mapa.
   Future<void> _openPointsPicker() async {
     final result = await Navigator.of(context).push<PointsSelectionResult>(
       MaterialPageRoute(
@@ -118,6 +122,7 @@ class _GenerateTabState extends State<GenerateTab> {
     _syncPreviewMap();
   }
 
+  /// Valida entradas y solicita el cálculo de la ruta al provider.
   Future<void> _generateRoutes() async {
     if (_startPoint == null || _destinationPoint == null) {
       ScaffoldMessenger.of(context).showSnackBar(
@@ -194,8 +199,7 @@ class _GenerateTabState extends State<GenerateTab> {
               icon: Icons.straighten_rounded,
               accentColor: _primaryColor,
               backgroundColor: _surfaceLow,
-              selected: true,
-              badgeText: 'ACTIVA',
+              selected: true,           
               onTap: () {},
             ),
             const SizedBox(height: 12),
@@ -349,7 +353,6 @@ class _GenerateTabState extends State<GenerateTab> {
                 elevationGain: selectedRoute.formattedElevationGain,
                 accentColor: _accentForPreference(_selectedPreference),
                 icon: _iconForPreference(_selectedPreference),
-                badge: _badgeForRoute(selectedRoute),
                 isHighlighted: false,
                 buttonText: 'Ver trazado',
                 onPressed: () {
@@ -361,6 +364,11 @@ class _GenerateTabState extends State<GenerateTab> {
                           _selectedPreference,
                         ),
                         route: selectedRoute,
+                        profile: _selectedProfile,
+                        preference: _selectedPreference,
+                        startLabel: previewStartLabel,
+                        endLabel: _destinationLabel,
+                        allowSave: true,
                       ),
                     ),
                   );
@@ -402,46 +410,36 @@ class _GenerateTabState extends State<GenerateTab> {
     }
   }
 
-  String _titleForRoute(
-    RouteProfile profile,
-    RoutingPreference preference,
-  ) {
+  String _titleForRoute(RouteProfile profile, RoutingPreference preference) {
     final activity = _activityLabel(profile);
     switch (preference) {
-      case RoutingPreference.masCorta:
+      case RoutingPreference.shortest:
         return '$activity - Ruta mas corta';
-      case RoutingPreference.masRapida:
+      case RoutingPreference.fastest:
         return '$activity - Ruta mas rapida';
-      case RoutingPreference.masDesafiante:
+      case RoutingPreference.mostChallenging:
         return '$activity - Ruta mas desafiante';
     }
   }
 
-  String? _badgeForRoute(RouteResult route) {
-    if (route.totalDistanceMeters > 0) {
-      return 'MAS CORTA';
-    }
-    return null;
-  }
-
   Color _accentForPreference(RoutingPreference preference) {
     switch (preference) {
-      case RoutingPreference.masCorta:
+      case RoutingPreference.shortest:
         return _secondaryContainer;
-      case RoutingPreference.masRapida:
+      case RoutingPreference.fastest:
         return _primaryFixed;
-      case RoutingPreference.masDesafiante:
+      case RoutingPreference.mostChallenging:
         return _tertiaryFixed;
     }
   }
 
   IconData _iconForPreference(RoutingPreference preference) {
     switch (preference) {
-      case RoutingPreference.masCorta:
+      case RoutingPreference.shortest:
         return Icons.straighten_rounded;
-      case RoutingPreference.masRapida:
+      case RoutingPreference.fastest:
         return Icons.bolt_rounded;
-      case RoutingPreference.masDesafiante:
+      case RoutingPreference.mostChallenging:
         return Icons.terrain_rounded;
     }
   }
@@ -484,6 +482,7 @@ class _GenerateTabState extends State<GenerateTab> {
   }
 }
 
+/// Título reutilizable de sección dentro del tab de generación.
 class _SectionTitle extends StatelessWidget {
   const _SectionTitle({required this.title});
 
@@ -503,6 +502,7 @@ class _SectionTitle extends StatelessWidget {
   }
 }
 
+/// Pista visual para listas horizontales desplazables.
 class _ScrollHint extends StatelessWidget {
   const _ScrollHint();
 
@@ -526,6 +526,7 @@ class _ScrollHint extends StatelessWidget {
   }
 }
 
+/// Tarjeta informativa para estados vacíos, carga o error.
 class _InfoCard extends StatelessWidget {
   const _InfoCard({
     required this.message,

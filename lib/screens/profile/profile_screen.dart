@@ -12,6 +12,7 @@ import 'package:ecoruta/widgets/streak_status_card.dart';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
+/// Pantalla principal del perfil con resumen, progreso y acciones.
 class ProfileScreen extends StatefulWidget {
   const ProfileScreen({super.key});
 
@@ -44,6 +45,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
     );
   }
 
+  /// Carga el perfil actual desde Firebase para refrescar la vista.
   Future<void> loadProfile() async {
     final provider = Provider.of<UserProvider>(context, listen: false);
     final userProfile = await AuthService().getCurrentUserProfile();

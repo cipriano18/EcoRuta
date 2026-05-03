@@ -6,6 +6,7 @@ import 'package:provider/provider.dart';
 import 'tabs/generate_tab.dart';
 import 'tabs/search_tab.dart';
 
+/// Pantalla contenedora de búsqueda y generación de rutas.
 class ExploreScreen extends StatefulWidget {
   const ExploreScreen({super.key});
 

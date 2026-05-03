@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:ecoruta/widgets/rank_timeline_card.dart';
 
+/// Describe un rango desbloqueable según kilómetros acumulados.
 class UserRank {
   const UserRank({required this.title, required this.minKm});
 
@@ -99,6 +100,7 @@ UserRankPalette getUserRankPalette(num kmCounter) {
   );
 }
 
+/// Pantalla que muestra la progresión completa de rangos del usuario.
 class UserRankScreen extends StatefulWidget {
   const UserRankScreen({super.key, required this.kmCounter});
 
@@ -317,6 +319,7 @@ class _UserRankScreenState extends State<UserRankScreen> {
   }
 }
 
+/// Agrupa colores e íconos usados para representar un rango.
 class UserRankPalette {
   const UserRankPalette({
     required this.backgroundColor,

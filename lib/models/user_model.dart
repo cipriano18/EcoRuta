@@ -1,9 +1,21 @@
+/// Representa el perfil persistido del usuario dentro de Firestore.
 class UserModel {
+  /// Identificador del usuario autenticado.
   final String uid;
+
+  /// Correo asociado a la cuenta.
   final String email;
+
+  /// Nombre completo mostrado en la app.
   final String fullName;
+
+  /// Dirección o ubicación de referencia del usuario.
   final String address;
+
+  /// Avatar seleccionado dentro del catálogo local.
   final int avatarId;
+
+  /// Actividad favorita elegida durante el registro.
   final String? favoriteActivity;
   final int? _completedRoutes;
   final num? _kmCounter;
@@ -26,10 +38,19 @@ class UserModel {
        _streakStartedAt = streakStartedAt,
        _streakDeadlineAt = streakDeadlineAt;
 
+  /// Cantidad de rutas completadas con valor por defecto seguro.
   int get completedRoutes => _completedRoutes ?? 0;
+
+  /// Kilómetros acumulados usados para rangos y progreso.
   num get kmCounter => _kmCounter ?? 0;
+
+  /// Fecha de inicio de la racha semanal activa.
   DateTime? get streakStartedAt => _streakStartedAt;
+
+  /// Fecha límite para conservar la racha actual.
   DateTime? get streakDeadlineAt => _streakDeadlineAt;
+
+  /// Calcula la cantidad de semanas activas de la racha vigente.
   int get streakWeeks {
     final startedAt = _streakStartedAt;
     final deadlineAt = _streakDeadlineAt;
@@ -41,6 +62,7 @@ class UserModel {
     return (now.difference(startedAt).inDays ~/ 7) + 1;
   }
 
+  /// Reconstruye el modelo a partir del documento de Firestore.
   factory UserModel.fromMap(Map<String, dynamic> data) {
     final rawAvatarId = data['avatarId'];
     final rawCompletedRoutes = data['completed_routes'];
@@ -64,6 +86,7 @@ class UserModel {
     );
   }
 
+  /// Crea una copia parcial para actualizar el estado sin mutar la instancia.
   UserModel copyWith({
     String? uid,
     String? email,

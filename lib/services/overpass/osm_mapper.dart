@@ -4,6 +4,7 @@ import 'package:ecoruta/models/geo_edge.dart';
 import 'package:ecoruta/models/geo_node.dart';
 import 'package:ecoruta/models/route_profile.dart';
 
+/// Resultado intermedio del mapeo de una respuesta OSM a grafo navegable.
 class OsmGraphData {
   const OsmGraphData({
     required this.nodes,
@@ -16,9 +17,11 @@ class OsmGraphData {
   final List<Map<String, dynamic>> rawWays;
 }
 
+/// Convierte la respuesta de Overpass en nodos y aristas de la app.
 class OsmMapper {
   const OsmMapper();
 
+  /// Transforma la carga cruda de OSM en una estructura apta para routing.
   OsmGraphData mapToGraph(
     Map<String, dynamic> payload, {
     required RouteProfile profile,
@@ -92,8 +95,7 @@ class OsmMapper {
         );
 
         // Los caminos de OSM son bidireccionales salvo oneway=yes.
-        final isOneway =
-            tags['oneway'] == 'yes' || tags['oneway'] == '1';
+        final isOneway = tags['oneway'] == 'yes' || tags['oneway'] == '1';
         if (!isOneway) {
           edges.add(
             GeoEdge(

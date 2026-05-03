@@ -8,6 +8,7 @@ import 'package:ecoruta/widgets/confirm_dialog.dart';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
+/// AppBar reutilizable con acceso rápido a cierre de sesión.
 class AppHeader extends StatelessWidget implements PreferredSizeWidget {
   const AppHeader({
     super.key,
@@ -23,6 +24,7 @@ class AppHeader extends StatelessWidget implements PreferredSizeWidget {
   final PreferredSizeWidget? bottom;
   final Color? backgroundColor;
 
+  /// Cierra sesión y redirige al flujo público de la aplicación.
   Future<void> _handleLogout(BuildContext context) async {
     final shouldLogout = await ConfirmDialog.mostrar(
       context,

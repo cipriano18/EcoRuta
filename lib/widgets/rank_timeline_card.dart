@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 
+/// Tarjeta que resume la progresión de rangos del usuario.
 class RankTimelineCard extends StatelessWidget {
   const RankTimelineCard({
     super.key,
@@ -148,6 +149,7 @@ class RankTimelineCard extends StatelessWidget {
   }
 }
 
+/// Define la apariencia asociada a un nivel de importancia visual.
 class _RankPalette {
   const _RankPalette({
     required this.highlight,

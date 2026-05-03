@@ -7,6 +7,7 @@ import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
+/// Pantalla de registro que crea la cuenta inicial y configura preferencias base.
 class RegisterScreen extends StatefulWidget {
   const RegisterScreen({super.key});
 
@@ -27,6 +28,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
   final TextEditingController addressController = TextEditingController();
   final TextEditingController passwordController = TextEditingController();
 
+  /// Registra al usuario, recupera su perfil y lo deja listo para navegar.
   Future<void> registerUser() async {
     final fullName = fullNameController.text.trim();
     final email = emailController.text.trim();
@@ -313,6 +315,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
     );
   }
 
+  /// Mantiene una jerarquía visual uniforme entre los campos del formulario.
   Widget _buildLabel(String text) {
     return Text(
       text.toUpperCase(),
@@ -325,6 +328,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
     );
   }
 
+  /// Reutiliza el mismo estilo de entrada en los datos principales del registro.
   Widget _buildStyledField({
     required TextEditingController controller,
     required String hint,

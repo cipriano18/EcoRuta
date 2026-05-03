@@ -2,11 +2,12 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:ecoruta/models/user_model.dart';
 
+/// Administra autenticación y perfil persistido del usuario en Firebase.
 class AuthService {
   final FirebaseAuth _auth = FirebaseAuth.instance;
   final FirebaseFirestore _firestore = FirebaseFirestore.instance;
 
-  //  LOGIN
+  /// Inicia sesión con correo y contraseña normalizados.
   Future<UserCredential> login({
     required String email,
     required String password,
@@ -17,7 +18,7 @@ class AuthService {
     );
   }
 
-  //  REGISTER
+  /// Registra un usuario nuevo y crea su perfil base en Firestore.
   Future<UserCredential> register({
     required String fullName,
     required String email,
@@ -26,8 +27,7 @@ class AuthService {
     required int avatarId,
     required String favoriteActivity,
   }) async {
-    final userCredential =
-        await _auth.createUserWithEmailAndPassword(
+    final userCredential = await _auth.createUserWithEmailAndPassword(
       email: email.trim(),
       password: password.trim(),
     );
@@ -59,20 +59,19 @@ class AuthService {
     return userCredential;
   }
 
-  //  Obtener usuario por UID
+  /// Obtiene el documento crudo de un usuario por UID.
   Future<Map<String, dynamic>?> getUserData(String uid) async {
     final doc = await _firestore.collection('users').doc(uid).get();
     return doc.data();
   }
 
-  //  Obtener usuario actual 
+  /// Recupera y normaliza el perfil del usuario autenticado.
   Future<UserModel?> getCurrentUserProfile() async {
     final user = _auth.currentUser;
 
     if (user == null) return null;
 
-    final doc =
-        await _firestore.collection('users').doc(user.uid).get();
+    final doc = await _firestore.collection('users').doc(user.uid).get();
 
     if (!doc.exists || doc.data() == null) return null;
 
@@ -84,6 +83,7 @@ class AuthService {
     return UserModel.fromMap(syncedData);
   }
 
+  /// Actualiza únicamente el avatar elegido por el usuario.
   Future<void> updateAvatar(int avatarId) async {
     final user = _auth.currentUser;
 
@@ -99,6 +99,7 @@ class AuthService {
     });
   }
 
+  /// Actualiza los campos editables del perfil.
   Future<void> updateProfile({
     required String fullName,
     required String address,
@@ -120,6 +121,7 @@ class AuthService {
     });
   }
 
+  /// Reautentica al usuario antes de cambiar su contraseña.
   Future<void> changePassword({
     required String currentPassword,
     required String newPassword,
@@ -142,9 +144,8 @@ class AuthService {
     await user.updatePassword(newPassword.trim());
   }
 
-  Future<void> deleteCurrentAccount({
-    required String currentPassword,
-  }) async {
+  /// Elimina la cuenta autenticada y hace rollback del perfil si falla Auth.
+  Future<void> deleteCurrentAccount({required String currentPassword}) async {
     final user = _auth.currentUser;
 
     if (user == null || user.email == null) {
@@ -186,6 +187,7 @@ class AuthService {
     }
   }
 
+  /// Registra el cumplimiento semanal de una ruta para mantener la racha.
   Future<UserModel?> registerWeeklyRouteCompletion() async {
     final user = _auth.currentUser;
 
@@ -245,6 +247,7 @@ class AuthService {
   }
 
   // LOGOUT
+  /// Cierra la sesión activa en Firebase Auth.
   Future<void> logout() async {
     await _auth.signOut();
   }

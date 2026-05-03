@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 
+/// Tarjeta seleccionable para explicar una preferencia de ruta.
 class PreferenceCard extends StatelessWidget {
   static const _primaryColor = Color(0xFF012D1D);
 

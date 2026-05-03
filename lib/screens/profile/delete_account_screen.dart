@@ -5,6 +5,7 @@ import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
+/// Pantalla de confirmación para eliminar la cuenta de forma permanente.
 class DeleteAccountScreen extends StatefulWidget {
   const DeleteAccountScreen({super.key});
 
@@ -28,6 +29,7 @@ class _DeleteAccountScreenState extends State<DeleteAccountScreen> {
     super.dispose();
   }
 
+  /// Reautentica y elimina la cuenta cuando el usuario lo confirma.
   Future<void> _deleteAccount() async {
     final currentPassword = _passwordController.text.trim();
     if (currentPassword.isEmpty) {

@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 
+/// Describe un avatar disponible y el progreso requerido para desbloquearlo.
 class AvatarOption {
   const AvatarOption({
     required this.id,
@@ -18,6 +19,7 @@ class AvatarOption {
   bool get isUnlockable => requiredKm > 0;
 }
 
+/// Renderiza el avatar actual o una opción específica del catálogo.
 class AvatarImage extends StatelessWidget {
   const AvatarImage({
     super.key,

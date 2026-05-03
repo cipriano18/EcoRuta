@@ -7,9 +7,11 @@ import '../screens/explore/explore_screen.dart';
 import '../screens/my_routes/my_routes_screen.dart';
 import '../screens/profile/profile_screen.dart';
 
+/// Contenedor principal que mantiene la navegación inferior de la app.
 class MainShell extends StatefulWidget {
   const MainShell({super.key});
 
+  /// Permite cambiar de pestaña desde pantallas hijas sin exponer el estado.
   static bool navigateToTab(BuildContext context, int index) {
     final state = context.findAncestorStateOfType<_MainShellState>();
     if (state == null) return false;
@@ -40,6 +42,7 @@ class _MainShellState extends State<MainShell> {
     _syncCurrentUserProfile();
   }
 
+  /// Sincroniza el perfil autenticado al entrar al shell principal.
   Future<void> _syncCurrentUserProfile() async {
     final userProfile = await AuthService().getCurrentUserProfile();
     if (!mounted || userProfile == null) return;
@@ -47,6 +50,7 @@ class _MainShellState extends State<MainShell> {
     Provider.of<UserProvider>(context, listen: false).setUser(userProfile);
   }
 
+  /// Cambia la pestaña activa preservando el estado del resto de vistas.
   void _goToTab(int index) {
     if (_currentIndex == index) return;
     setState(() => _currentIndex = index);
@@ -117,6 +121,7 @@ class _MainShellState extends State<MainShell> {
 }
 
 // ── Tab item individual ───────────────────────────────────────────────────────
+/// Ítem visual reutilizable para la barra de navegación inferior.
 class _NavItem extends StatelessWidget {
   final IconData icon;
   final String label;

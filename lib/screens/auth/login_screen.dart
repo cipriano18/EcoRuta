@@ -7,6 +7,7 @@ import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
+/// Pantalla de acceso que autentica al usuario y restablece su sesión local.
 class LoginScreen extends StatefulWidget {
   const LoginScreen({super.key});
 
@@ -22,6 +23,7 @@ class _LoginScreenState extends State<LoginScreen> {
   final TextEditingController emailController = TextEditingController();
   final TextEditingController passwordController = TextEditingController();
 
+  /// Valida el formulario, autentica al usuario y carga su perfil en memoria.
   Future<void> loginUser() async {
     final email = emailController.text.trim();
     final password = passwordController.text.trim();
@@ -404,6 +406,7 @@ class _LoginScreenState extends State<LoginScreen> {
     );
   }
 
+  /// Mantiene el estilo de etiquetas auxiliares usado por el formulario.
   Widget _buildLabel(String text) {
     return Padding(
       padding: const EdgeInsets.only(left: 4, bottom: 8),
@@ -419,6 +422,7 @@ class _LoginScreenState extends State<LoginScreen> {
     );
   }
 
+  /// Crea campos de entrada consistentes para los datos básicos del login.
   Widget _buildInputField({
     required TextEditingController controller,
     required String hint,

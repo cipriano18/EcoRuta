@@ -9,6 +9,7 @@ import 'package:flutter/material.dart';
 import 'package:geolocator/geolocator.dart';
 import 'package:latlong2/latlong.dart';
 
+/// Tab orientado a descubrir destinos y filtros de búsqueda.
 class SearchTab extends StatefulWidget {
   const SearchTab({super.key});
 
@@ -45,6 +46,7 @@ class _SearchTabState extends State<SearchTab> {
     super.dispose();
   }
 
+  /// Intenta resolver la ubicación actual para ordenar sugerencias cercanas.
   Future<void> _initCurrentLocation() async {
     try {
       LocationPermission permission = await Geolocator.checkPermission();
@@ -259,6 +261,7 @@ class _SearchTabState extends State<SearchTab> {
     });
   }
 
+  /// Consulta lugares en Nominatim a partir del texto del usuario.
   Future<void> _searchSuggestions(String query) async {
     final trimmed = query.trim();
     if (trimmed.isEmpty) return;
@@ -341,6 +344,7 @@ class _SearchTabState extends State<SearchTab> {
   }
 }
 
+/// Modelo liviano para representar un resultado de búsqueda geográfica.
 class _PlaceSuggestion {
   const _PlaceSuggestion({
     required this.title,

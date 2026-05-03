@@ -3,6 +3,7 @@ import 'package:ecoruta/providers/explore_provider.dart';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
+/// Pantalla de prueba rápida para validar consultas y perfiles de routing.
 class TestOverpassRouteScreen extends StatelessWidget {
   const TestOverpassRouteScreen({super.key});
 
@@ -15,6 +16,7 @@ class TestOverpassRouteScreen extends StatelessWidget {
   }
 }
 
+/// Representa un punto de prueba fijo usado en la pantalla experimental.
 class _Place {
   const _Place(this.name, this.lat, this.lon);
 
@@ -23,6 +25,7 @@ class _Place {
   final double lon;
 }
 
+/// Vista de pruebas que ejecuta consultas y renderiza resultados básicos.
 class _TestOverpassRouteView extends StatefulWidget {
   const _TestOverpassRouteView();
 
@@ -54,6 +57,7 @@ class _TestOverpassRouteViewState extends State<_TestOverpassRouteView> {
     endPlace = places[1];
   }
 
+  /// Ejecuta una consulta de rutas con los parámetros de prueba seleccionados.
   Future<void> calculateRoutes() async {
     final provider = context.read<ExploreProvider>();
 
@@ -218,9 +222,7 @@ class _TestOverpassRouteViewState extends State<_TestOverpassRouteView> {
                   name,
                   style: const TextStyle(fontWeight: FontWeight.w800),
                 ),
-                subtitle: Text(
-                  'Tipo: $highway\nWay ID: ${way['id']}',
-                ),
+                subtitle: Text('Tipo: $highway\nWay ID: ${way['id']}'),
               ),
             );
           }),
@@ -258,10 +260,7 @@ class _TestOverpassRouteViewState extends State<_TestOverpassRouteView> {
             ),
           ),
           items: places.map((place) {
-            return DropdownMenuItem(
-              value: place,
-              child: Text(place.name),
-            );
+            return DropdownMenuItem(value: place, child: Text(place.name));
           }).toList(),
           onChanged: onChanged,
         ),

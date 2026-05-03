@@ -15,6 +15,7 @@ import 'package:flutter/foundation.dart'
 /// );
 /// ```
 class DefaultFirebaseOptions {
+  /// Devuelve la configuración adecuada según la plataforma actual.
   static FirebaseOptions get currentPlatform {
     if (kIsWeb) {
       return web;
@@ -40,6 +41,7 @@ class DefaultFirebaseOptions {
     }
   }
 
+  /// Configuración de Firebase para Flutter web.
   static const FirebaseOptions web = FirebaseOptions(
     apiKey: 'AIzaSyAf--HSJj0iEeJ3TGr8Lmg3USbBj_3C7z0',
     appId: '1:755850617671:web:4d2f9ee9e501da8dc56262',
@@ -50,6 +52,7 @@ class DefaultFirebaseOptions {
     measurementId: 'G-3PFECE5RE5',
   );
 
+  /// Configuración de Firebase para Android.
   static const FirebaseOptions android = FirebaseOptions(
     apiKey: 'AIzaSyBxZLmXdeV5g9HvHTW8XlqPhoWyEifg-jM',
     appId: '1:755850617671:android:99ae28ccef93a196c56262',
@@ -58,6 +61,7 @@ class DefaultFirebaseOptions {
     storageBucket: 'ecorutacr-940a7.firebasestorage.app',
   );
 
+  /// Configuración de Firebase para iOS.
   static const FirebaseOptions ios = FirebaseOptions(
     apiKey: 'AIzaSyCDh5_cuX97XNcUyI557Yzuk1a4GKR43xI',
     appId: '1:755850617671:ios:53ee27f004cdb2a4c56262',
@@ -67,6 +71,7 @@ class DefaultFirebaseOptions {
     iosBundleId: 'com.example.lab2Moviles',
   );
 
+  /// Configuración de Firebase para macOS.
   static const FirebaseOptions macos = FirebaseOptions(
     apiKey: 'AIzaSyCDh5_cuX97XNcUyI557Yzuk1a4GKR43xI',
     appId: '1:755850617671:ios:53ee27f004cdb2a4c56262',
@@ -76,6 +81,7 @@ class DefaultFirebaseOptions {
     iosBundleId: 'com.example.lab2Moviles',
   );
 
+  /// Configuración de Firebase para Windows.
   static const FirebaseOptions windows = FirebaseOptions(
     apiKey: 'AIzaSyAf--HSJj0iEeJ3TGr8Lmg3USbBj_3C7z0',
     appId: '1:755850617671:web:359337123fa998b4c56262',

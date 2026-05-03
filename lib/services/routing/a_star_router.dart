@@ -6,18 +6,21 @@ import 'package:ecoruta/models/geo_node.dart';
 import 'package:ecoruta/models/route_profile.dart';
 import 'package:ecoruta/services/routing/route_result.dart';
 
-enum RoutingPreference { masCorta, masRapida, masDesafiante }
+/// Objetivos de optimización que puede seguir el algoritmo A*.
+enum RoutingPreference { shortest, fastest, mostChallenging }
 
+/// Resuelve rutas sobre el grafo de la app usando A* y heurísticas simples.
 class AStarRouter {
   const AStarRouter();
 
+  /// Busca una ruta entre dos nodos según perfil y preferencia de cálculo.
   RouteResult? findRoute({
     required List<GeoNode> nodes,
     required List<GeoEdge> edges,
     required int startId,
     required int goalId,
     required RouteProfile profile,
-    RoutingPreference preference = RoutingPreference.masCorta,
+    RoutingPreference preference = RoutingPreference.shortest,
   }) {
     final nodeMap = {for (final n in nodes) n.id: n};
     final startNode = nodeMap[startId];
@@ -38,9 +41,8 @@ class AStarRouter {
     };
     final cameFrom = <int, GeoEdge>{};
     final closedSet = <int>{};
-    final openQueue = PriorityQueue<_AStarEntry>(
-      (a, b) => a.f.compareTo(b.f),
-    )..add(_AStarEntry(startId, fScore[startId]!));
+    final openQueue = PriorityQueue<_AStarEntry>((a, b) => a.f.compareTo(b.f))
+      ..add(_AStarEntry(startId, fScore[startId]!));
 
     while (openQueue.isNotEmpty) {
       final currentEntry = openQueue.removeFirst();
@@ -51,12 +53,7 @@ class AStarRouter {
       closedSet.add(current);
 
       if (current == goalId) {
-        return _reconstructPath(
-          cameFrom,
-          nodeMap,
-          profile,
-          current,
-        );
+        return _reconstructPath(cameFrom, nodeMap, profile, current);
       }
 
       for (final edge in adjacency[current] ?? const <GeoEdge>[]) {
@@ -67,20 +64,15 @@ class AStarRouter {
         final toNode = nodeMap[neighbor];
         if (fromNode == null || toNode == null) continue;
 
-        final tentativeG = (gScore[current] ?? double.infinity) +
-            _edgeSearchCost(
-              edge,
-              fromNode,
-              toNode,
-              profile,
-              preference,
-            );
+        final tentativeG =
+            (gScore[current] ?? double.infinity) +
+            _edgeSearchCost(edge, fromNode, toNode, profile, preference);
 
         if (tentativeG < (gScore[neighbor] ?? double.infinity)) {
           cameFrom[neighbor] = edge;
           gScore[neighbor] = tentativeG;
-          final nextF = tentativeG +
-              _heuristic(toNode, goalNode, profile, preference);
+          final nextF =
+              tentativeG + _heuristic(toNode, goalNode, profile, preference);
           fScore[neighbor] = nextF;
           openQueue.add(_AStarEntry(neighbor, nextF));
         }
@@ -90,6 +82,7 @@ class AStarRouter {
     return null;
   }
 
+  /// Busca el nodo más cercano dentro del componente principal del grafo.
   GeoNode? nearestNode(
     List<GeoNode> nodes,
     List<GeoEdge> edges,
@@ -102,12 +95,20 @@ class AStarRouter {
     final pool = candidates.isEmpty ? nodes : candidates;
 
     GeoNode nearest = pool.first;
-    double minDist =
-        _haversine(nearest.latitude, nearest.longitude, latitude, longitude);
+    double minDist = _haversine(
+      nearest.latitude,
+      nearest.longitude,
+      latitude,
+      longitude,
+    );
 
     for (final node in pool.skip(1)) {
-      final dist =
-          _haversine(node.latitude, node.longitude, latitude, longitude);
+      final dist = _haversine(
+        node.latitude,
+        node.longitude,
+        latitude,
+        longitude,
+      );
       if (dist < minDist) {
         minDist = dist;
         nearest = node;
@@ -117,6 +118,7 @@ class AStarRouter {
     return nearest;
   }
 
+  /// Retorna varios nodos cercanos para probar anclas de conexión válidas.
   List<GeoNode> nearestNodes(
     List<GeoNode> nodes,
     double latitude,
@@ -127,18 +129,17 @@ class AStarRouter {
 
     final sorted = [...nodes];
     sorted.sort(
-      (a, b) => _haversine(a.latitude, a.longitude, latitude, longitude)
-          .compareTo(
-            _haversine(b.latitude, b.longitude, latitude, longitude),
-          ),
+      (a, b) => _haversine(
+        a.latitude,
+        a.longitude,
+        latitude,
+        longitude,
+      ).compareTo(_haversine(b.latitude, b.longitude, latitude, longitude)),
     );
     return sorted.take(limit).toList(growable: false);
   }
 
-  List<GeoNode> _mainComponentNodes(
-    List<GeoNode> nodes,
-    List<GeoEdge> edges,
-  ) {
+  List<GeoNode> _mainComponentNodes(List<GeoNode> nodes, List<GeoEdge> edges) {
     final adj = <int, List<int>>{};
     for (final e in edges) {
       adj.putIfAbsent(e.fromNodeId, () => []).add(e.toNodeId);
@@ -184,11 +185,11 @@ class AStarRouter {
     RoutingPreference preference,
   ) {
     switch (preference) {
-      case RoutingPreference.masCorta:
+      case RoutingPreference.shortest:
         return edge.distanceMeters;
-      case RoutingPreference.masRapida:
+      case RoutingPreference.fastest:
         return _edgeTravelTimeSeconds(edge, profile);
-      case RoutingPreference.masDesafiante:
+      case RoutingPreference.mostChallenging:
         final climbMeters = _positiveElevationGain(fromNode, toNode);
         final climbRewardFactor = 1 + (climbMeters / 12);
         return (edge.distanceMeters / climbRewardFactor) +
@@ -263,14 +264,18 @@ class AStarRouter {
     RouteProfile profile,
     RoutingPreference preference,
   ) {
-    final distance =
-        _haversine(from.latitude, from.longitude, to.latitude, to.longitude);
+    final distance = _haversine(
+      from.latitude,
+      from.longitude,
+      to.latitude,
+      to.longitude,
+    );
     switch (preference) {
-      case RoutingPreference.masCorta:
+      case RoutingPreference.shortest:
         return distance;
-      case RoutingPreference.masRapida:
+      case RoutingPreference.fastest:
         return distance / _maxHeuristicSpeed(profile);
-      case RoutingPreference.masDesafiante:
+      case RoutingPreference.mostChallenging:
         return 0;
     }
   }
@@ -279,7 +284,8 @@ class AStarRouter {
     const r = 6371000.0;
     final dLat = _rad(lat2 - lat1);
     final dLon = _rad(lon2 - lon1);
-    final a = math.sin(dLat / 2) * math.sin(dLat / 2) +
+    final a =
+        math.sin(dLat / 2) * math.sin(dLat / 2) +
         math.cos(_rad(lat1)) *
             math.cos(_rad(lat2)) *
             math.sin(dLon / 2) *

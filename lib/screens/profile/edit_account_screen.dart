@@ -3,6 +3,7 @@ import 'package:ecoruta/services/auth_service.dart';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
+/// Pantalla para editar los campos básicos del perfil del usuario.
 class EditAccountScreen extends StatefulWidget {
   const EditAccountScreen({super.key});
 
@@ -13,11 +14,7 @@ class EditAccountScreen extends StatefulWidget {
 class _EditAccountScreenState extends State<EditAccountScreen> {
   static const _primary = Color(0xFF012D1D);
   static const _surface = Color(0xFFEDEEEF);
-  static const _favoriteActivities = [
-    'Senderismo',
-    'Ciclismo',
-    'Running',
-  ];
+  static const _favoriteActivities = ['Senderismo', 'Ciclismo', 'Running'];
 
   final _fullNameController = TextEditingController();
   final _emailController = TextEditingController();
@@ -46,6 +43,7 @@ class _EditAccountScreenState extends State<EditAccountScreen> {
     super.dispose();
   }
 
+  /// Guarda los cambios del perfil y sincroniza el estado local.
   Future<void> _saveProfile() async {
     final provider = Provider.of<UserProvider>(context, listen: false);
     final user = provider.user;
@@ -99,7 +97,7 @@ class _EditAccountScreenState extends State<EditAccountScreen> {
 
   @override
   Widget build(BuildContext context) {
-    final user = Provider.of<UserProvider>(context).user;
+    Provider.of<UserProvider>(context);
 
     return Scaffold(
       backgroundColor: const Color(0xFFF8F9FA),
@@ -226,6 +224,7 @@ class _EditAccountScreenState extends State<EditAccountScreen> {
     );
   }
 
+  /// Presenta la etiqueta descriptiva de cada grupo del formulario.
   Widget _buildLabel(String text) {
     return Padding(
       padding: const EdgeInsets.only(bottom: 8),
@@ -241,6 +240,7 @@ class _EditAccountScreenState extends State<EditAccountScreen> {
     );
   }
 
+  /// Construye campos editables con el estilo visual del módulo de perfil.
   Widget _buildStyledField({
     required TextEditingController controller,
     required String hintText,
@@ -261,6 +261,7 @@ class _EditAccountScreenState extends State<EditAccountScreen> {
     );
   }
 
+  /// Muestra el correo como referencia sin permitir su edición directa.
   Widget _buildDisabledField() {
     return TextField(
       enabled: false,

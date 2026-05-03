@@ -1,12 +1,22 @@
 import 'package:flutter/material.dart';
 
+/// Tarjeta seleccionable para elegir un tipo de actividad.
 class ActivityTypeCard extends StatelessWidget {
   static const _primaryColor = Color(0xFF012D1D);
 
+  /// Ícono representativo de la actividad.
   final IconData icon;
+
+  /// Texto principal mostrado en la tarjeta.
   final String label;
+
+  /// Indica si la tarjeta está activa en el contexto actual.
   final bool selected;
+
+  /// Acción ejecutada al tocar la tarjeta.
   final VoidCallback onTap;
+
+  /// Ancho configurable para adaptarse a distintos layouts.
   final double width;
 
   const ActivityTypeCard({

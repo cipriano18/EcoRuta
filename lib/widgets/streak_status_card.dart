@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 
+/// Tarjeta que comunica el estado actual de la racha semanal.
 class StreakStatusCard extends StatelessWidget {
   const StreakStatusCard({super.key, required this.streakWeeks});
 
@@ -86,6 +87,7 @@ class StreakStatusCard extends StatelessWidget {
   }
 }
 
+/// Devuelve el recurso visual que representa la racha actual.
 String getStreakFrogAsset(int streakWeeks) {
   if (streakWeeks > 0 && streakWeeks <= 20) {
     return 'assets/images/Frogs/frog1.gif';
@@ -128,6 +130,7 @@ StreakPalette getStreakPalette(int streakWeeks) {
   );
 }
 
+/// Define la paleta asociada a cada tramo de racha semanal.
 class StreakPalette {
   const StreakPalette({
     required this.backgroundColor,

@@ -3,18 +3,16 @@ import 'dart:convert';
 import 'package:ecoruta/models/geo_node.dart';
 import 'package:http/http.dart' as http;
 
+/// Administra consultas de elevación para enriquecer nodos geográficos.
 class ElevationService {
-  ElevationService({http.Client? client})
-      : _client = client ?? http.Client();
+  ElevationService({http.Client? client}) : _client = client ?? http.Client();
 
   final http.Client _client;
 
   static const _endpoint = 'https://api.opentopodata.org/v1/srtm30m';
-
-  // OpenTopoData acepta máximo 100 ubicaciones por petición.
   static const _batchSize = 100;
 
-
+  /// Enriquece nodos con elevación sin alterar el orden del recorrido.
   Future<List<GeoNode>> enrichWithElevation(List<GeoNode> nodes) async {
     if (nodes.isEmpty) return nodes;
 
@@ -31,8 +29,9 @@ class ElevationService {
   }
 
   Future<List<GeoNode>> _fetchBatch(List<GeoNode> nodes) async {
-    final locations =
-        nodes.map((n) => '${n.latitude},${n.longitude}').join('|');
+    final locations = nodes
+        .map((n) => '${n.latitude},${n.longitude}')
+        .join('|');
 
     try {
       final response = await _client
@@ -65,6 +64,7 @@ class ElevationService {
   }
 }
 
+/// Error semántico para fallas específicas del servicio de elevación.
 class ElevationException implements Exception {
   const ElevationException(this.message);
 

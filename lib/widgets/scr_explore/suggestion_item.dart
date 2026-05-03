@@ -1,8 +1,14 @@
 import 'package:flutter/material.dart';
 
+/// Variante reutilizable para renderizar sugerencias de búsqueda.
 class SuggestionItem extends StatelessWidget {
+  /// Nombre principal del resultado.
   final String title;
+
+  /// Contexto secundario mostrado debajo del título.
   final String subtitle;
+
+  /// Acción que se dispara al elegir la sugerencia.
   final VoidCallback onTap;
 
   const SuggestionItem({
